@@ -91,3 +91,82 @@ void CallService::callbackfun(esl_socket_t server_sock, esl_socket_t client_sock
 
     esl_disconnect(&handle);
 }
+
+int CallService::HttpPost(const char *url, std::string data, std::string &response, int timeout)
+{
+    if (timeout <= 0)
+        timeout = 20;
+    CURLcode res = CURLE_FAILED_INIT;
+    CURL *curl = NULL;
+    std::string resp;
+    curl = curl_easy_init();
+
+    if (curl == NULL)
+    {
+        const char *szError = curl_easy_strerror(res);
+        return (int)CURLE_FAILED_INIT;
+    }
+    curl_slist *http_headers = NULL;
+    http_headers = curl_slist_append(http_headers, "Accept: application/json");
+    http_headers = curl_slist_append(http_headers, "Content-Type: application/json");
+    http_headers = curl_slist_append(http_headers, "charsets: utf-8");
+    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, http_headers);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CallService::writedata);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (char *)&resp);
+    res = curl_easy_perform(curl);
+    if (res != CURLE_OK)
+    {
+        const char *szError = curl_easy_strerror(res);
+    }
+    else
+    {
+        response = resp;
+    }
+    curl_slist_free_all(http_headers);
+    curl_easy_cleanup(curl);
+    return (int)res;
+}
+
+int CallService::HttpGet(const char *url, std::string param, std::string &resp)
+{
+    CURL* curl = NULL;
+	CURLcode res = CURLE_FAILED_INIT;
+	curl = curl_easy_init();
+	if (curl == NULL)
+	{
+		const char* szError = curl_easy_strerror(res);		
+		return (int)CURLE_FAILED_INIT;
+	}
+	struct curl_slist* headerlist = NULL;
+	headerlist = curl_slist_append(headerlist, "Content-Type:application/x-www-form-urlencoded;charset=UTF-8");
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerlist);
+	curl_easy_setopt(curl, CURLOPT_URL, url);
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, param);
+	curl_easy_setopt(curl, CURLOPT_POST, 1L);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CallService::writedata);
+	std::string response;
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (char*)&response);
+	res = curl_easy_perform(curl);
+	if (res != CURLE_OK)
+	{
+		const char* szError = curl_easy_strerror(res);		
+	}
+	else {
+		resp = response;		
+	}
+	curl_slist_free_all(headerlist);
+	curl_easy_cleanup(curl);
+	return (int)res;
+}
+
+int CallService::writedata(void *buffer, int size, int nmemb, void *userPtr)
+{
+    std::string *str = static_cast<std::string *>((std::string *)userPtr);
+    str->append((char *)buffer, size * nmemb);
+    return nmemb;
+}

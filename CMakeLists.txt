@@ -18,5 +18,6 @@ target_sources(${PROJECT_NAME}  PRIVATE src/CallService.cpp
                                         src/CRestfulServer.cpp                                       
                                         )
 
-target_link_libraries(${PROJECT_NAME}  libesl.a)
+target_link_libraries(${PROJECT_NAME}  libesl.a
+                                    libcurl.a)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
