@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include_directories(${PROJECT_SOURCE_DIR}/inc
                     /opt/boost_1_85_0
+                    /opt/rapidjson/include
                     )
 link_directories(${PROJECT_SOURCE_DIR}/lib
                     /opt/boost_1_85_0/stage/lib

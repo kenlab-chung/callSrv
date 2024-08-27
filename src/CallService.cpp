@@ -28,7 +28,7 @@ bool CallService::startUp()
     std::thread{std::bind([this](int port)
                           {
         CRestfulServer server;
-        server.runner(port); }, 8080)}
+        server.runner(port,this); }, 8080)}
         .detach();
     return true;
 }

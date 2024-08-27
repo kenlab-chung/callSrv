@@ -1,7 +1,7 @@
 #include "CRestfulServer.h"
 CRestfulServer::CRestfulServer() {}
 CRestfulServer::~CRestfulServer() {}
-void CRestfulServer::runner(unsigned short port)
+void CRestfulServer::runner(unsigned short port,void* argv)
 {
     asio::io_context ioc;
     ip::tcp::acceptor acceptor(ioc, {ip::tcp::v4(), port});
@@ -9,13 +9,15 @@ void CRestfulServer::runner(unsigned short port)
     {
         ip::tcp::socket socket(ioc);
         acceptor.accept(socket);
-        std::thread{std::bind(do_session, std::move(socket))}.detach();
+        std::thread{std::bind(do_session, std::move(socket),argv)}.detach();
     }
 }
-void CRestfulServer::do_session(ip::tcp::socket &socket)
+void CRestfulServer::do_session(ip::tcp::socket &socket,void* argv)
 {
     try
     {
+        CallService* pThis = (CallService* )argv;
+        pThis->hello();
         boost::beast::flat_buffer buffer;
         http::request<http::string_body> req;
         boost::beast::error_code ec;
@@ -35,11 +37,34 @@ void CRestfulServer::do_session(ip::tcp::socket &socket)
                 {
                     res = boost::beast::http::response<boost::beast::http::string_body>(http::status::bad_request, req.version());
                     res.set(boost::beast::http::field::content_type, "application/json");
-                    res.body() = R"({"msg": ["data", "Not Found"]})";
+                    res.body() = R"({"code":-1,"msg": "Method Not Found"})";
                 }
             }
             else if (req.method() == boost::beast::http::verb::post)
             {
+                if (req.target() == "/agent/login")
+                {
+                    res = boost::beast::http::response<boost::beast::http::string_body>(http::status::ok, req.version());
+                    res.set(http::field::content_type, "application/json");
+                    res.body() = R"({"users": ["Bob", "Gim"]})";
+                    std::cout<<req.body()<<std::endl;
+                }
+                else if (req.target() == "/agent/logout")
+                {
+                    
+                }
+                else if (req.target() == "/agent/makeBusy")
+                {
+                }
+                else if (req.target() == "/agent/makeIdle")
+                {
+                }
+                else
+                {
+                    res = boost::beast::http::response<boost::beast::http::string_body>(http::status::bad_request, req.version());
+                    res.set(boost::beast::http::field::content_type, "application/json");
+                    res.body() = R"({"code":-1,"msg": "Method Not Found"})";
+                }
             }
             else if (req.method() == boost::beast::http::verb::put)
             {
