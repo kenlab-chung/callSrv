@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-
+#include "AgentStatus.h"
 class Agent
 {
 public:
@@ -9,6 +9,7 @@ public:
         m_strDN = "";
         m_strAgent = "";
         m_bPolling = false;
+        m_eStatus = AgentStatus::unknown;
     }
     ~Agent() {}
     void setDn(std::string dn) { m_strDN = dn; }
@@ -22,4 +23,5 @@ private:
     std::string m_strDN;
     std::string m_strAgent;
     bool m_bPolling;
+    AgentStatus m_eStatus;
 };

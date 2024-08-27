@@ -16,7 +16,9 @@ link_directories(${PROJECT_SOURCE_DIR}/lib
 
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_sources(${PROJECT_NAME}  PRIVATE src/CallService.cpp  
-                                        src/CRestfulServer.cpp                                       
+                                        src/CRestfulServer.cpp  
+                                        src/session.cpp 
+                                        src/server.cpp                                    
                                         )
 
 target_link_libraries(${PROJECT_NAME}  libesl.a

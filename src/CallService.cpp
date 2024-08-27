@@ -23,6 +23,10 @@ int CallService::loadconfig()
 
 bool CallService::startUp()
 {
+    net::io_context ioc;
+    server s(ioc,tcp::endpoint(net::ip::make_address("0.0.0.0"),8081));
+    ioc.run();
+
     m_bRunning = true;
 
     std::thread{std::bind([this](int port)

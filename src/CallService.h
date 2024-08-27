@@ -6,7 +6,8 @@
 #include <list>
 #include "Agent.h"
 #include <memory>
-
+#include "session.h"
+#include "server.h"
 class CallService
 {
 private:
