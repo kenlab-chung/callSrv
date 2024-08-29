@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #message-box {
+            width: 300px;
+            height: 200px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            overflow-y: scroll;
+        }
+        #input-message {
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Client</h1>
+    <div id="message-box"></div>
+    <br>
+    <input type="text" id="input-message" placeholder="Enter message...">
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+        // WebSocket 客户端初始化
+        var socket = new WebSocket('ws://192.168.1.91:8081');
+
+        // 连接打开时触发
+        socket.onopen = function(event) {
+            console.log('WebSocket connection opened:', event);
+            document.getElementById('message-box').innerHTML += 'WebSocket connection opened.\n';
+        };
+
+        // 接收消息时触发
+        socket.onmessage = function(event) {
+            console.log('Received message:', event.data);
+            document.getElementById('message-box').innerHTML += 'Received: ' + event.data + '\n';
+        };
+
+        // 连接关闭时触发
+        socket.onclose = function(event) {
+            console.log('WebSocket connection closed:', event);
+            document.getElementById('message-box').innerHTML += 'WebSocket connection closed.\n';
+        };
+
+        // 发送消息
+        function sendMessage() {
+            var message = document.getElementById('input-message').value;
+            if (message.trim() === '') {
+                alert('Please enter a message.');
+                return;
+            }
+            socket.send(message);
+            document.getElementById('message-box').innerHTML += 'Sent: ' + message + '\n';
+            document.getElementById('input-message').value = '';
+        }
+
+        // 连接错误时触发
+        socket.onerror = function(error) {
+            console.error('WebSocket error:', error);
+            document.getElementById('message-box').innerHTML += 'WebSocket error: ' + error + '\n';
+        };
+    </script>
+</body>
+</html>

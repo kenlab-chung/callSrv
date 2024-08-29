@@ -1,3 +1,10 @@
+/*************************************************************************
+  > File Name: server.cpp
+  > Author: zhongqf
+  > Mail: zhongqf.cn@gmail.com 
+  > Created Time: 2024-08-28
+ ************************************************************************/
+
 #include "server.h"
 
 server::server(net::io_context &ioc, tcp::endpoint endpoint):acceptor_(ioc),ioc_(ioc)

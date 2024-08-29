@@ -1,3 +1,9 @@
+/*************************************************************************
+  > File Name: AgentStatus.h
+  > Author: zhongqf
+  > Mail: zhongqf.cn@gmail.com 
+  > Created Time: 2024-08-28
+ ************************************************************************/
 enum class AgentStatus : unsigned
 {
     unknown = 0,
