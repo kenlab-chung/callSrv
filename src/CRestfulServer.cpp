@@ -1,11 +1,13 @@
 /*************************************************************************
   > File Name: CRestfulServer.cpp
   > Author: zhongqf
-  > Mail: zhongqf.cn@gmail.com 
+  > Mail: zhongqf.cn@gmail.com
   > Created Time: 2024-08-28
  ************************************************************************/
 
 #include "CRestfulServer.h"
+#include <ranges>
+
 CRestfulServer::CRestfulServer() {}
 CRestfulServer::~CRestfulServer() {}
 void CRestfulServer::runner(unsigned short port, void *argv)
@@ -16,20 +18,55 @@ void CRestfulServer::runner(unsigned short port, void *argv)
     {
         ip::tcp::socket socket(ioc);
         acceptor.accept(socket);
-        std::thread{std::bind(do_session, std::move(socket), argv)}.detach();
+        std::thread{std::bind(do_session, std::move(socket), argv, this)}.detach();
     }
 }
-void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv)
+bool CRestfulServer::parseAgent(http::request<http::string_body> &req, std::string &Dn_, std::string &Agent_, http::response<http::string_body> &res)
+{
+    rapidjson::Document doc;
+    if (doc.Parse(req.body().c_str()).HasParseError())
+    {
+        res = boost::beast::http::response<boost::beast::http::string_body>(http::status::not_acceptable, req.version());
+        res.body() = R"({"code":-1,"msg": "Data not acceptable."})";
+        return false;
+    }
+    else
+    {
+        if (doc.HasMember("dn") && doc["dn"].IsString())
+        {
+            Dn_ = doc["dn"].GetString();
+        }
+        if (doc.HasMember("agent") && doc["agent"].IsString())
+        {
+            Agent_ = doc["agent"].GetString();
+        }
+        if (Agent_.empty())
+        {
+            Agent_ = Dn_;
+        }
+    }
+    if (Dn_.empty() && Agent_.empty())
+    {
+        res = boost::beast::http::response<boost::beast::http::string_body>(http::status::not_acceptable, req.version());
+        res.body() = R"({"code":-1,"msg": "Data not acceptable."})";
+        return false;
+    }
+    return true;
+}
+
+void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
 {
     try
     {
-        CallService *pThis = (CallService *)argv;
-        pThis->hello();
+        CallService *pCallSrv = (CallService *)argv;
+        CRestfulServer *pThis = (CRestfulServer *)self;
+        pCallSrv->hello();
         boost::beast::flat_buffer buffer;
         http::request<http::string_body> req;
         boost::beast::error_code ec;
         auto bytes_transferred = http::read(socket, buffer, req, ec);
         http::response<http::string_body> res;
+        res.set(boost::beast::http::field::content_type, "application/json");
         if (!ec)
         {
             if (req.method() == boost::beast::http::verb::get)
@@ -37,13 +74,11 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv)
                 if (req.target() == "/users")
                 {
                     res = boost::beast::http::response<boost::beast::http::string_body>(http::status::ok, req.version());
-                    res.set(http::field::content_type, "application/json");
                     res.body() = R"({"users": ["Alice", "Bob"]})";
                 }
                 else
                 {
                     res = boost::beast::http::response<boost::beast::http::string_body>(http::status::bad_request, req.version());
-                    res.set(boost::beast::http::field::content_type, "application/json");
                     res.body() = R"({"code":-1,"msg": "Method Not Found."})";
                 }
             }
@@ -51,32 +86,62 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv)
             {
                 if (req.target() == "/agent/login")
                 {
-
-                    rapidjson::Document document;
-                    if (document.Parse(req.body().c_str()).HasParseError())
+                    std::string dn, agent;
+                    if (pThis->parseAgent(req, dn, agent, res))
                     {
-                        res = boost::beast::http::response<boost::beast::http::string_body>(http::status::not_acceptable, req.version());
-                        res.set(boost::beast::http::field::content_type, "application/json");
-                        res.body() = R"({"code":-1,"msg": "Data not acceptable."})";
-                    }
-                    else
-                    {                        
+                        std::shared_ptr<Agent> pAgent = std::make_shared<Agent>();
+                        pAgent->setDn(dn);
+                        pAgent->setAgent(agent);
+                        pAgent->setPolling(false);
+                        pAgent->setAgentStatus(AgentStatus::notReady);
+
+                        auto it = std::find_if(pCallSrv->getAgentList().begin(), pCallSrv->getAgentList().end(), [&pAgent](const std::shared_ptr<Agent> &p)
+                                               { return p->getDn() == pAgent->getDn(); });
+
+                        if (it != pCallSrv->getAgentList().end())
+                        {
+                            std::shared_ptr<Agent> p = *it;
+                            p->setAgent(agent);
+                            p->setPolling(false);
+                            p->setAgentStatus(AgentStatus::notReady);
+                        }
+                        else
+                        {
+                            pCallSrv->getAgentList().push_back(pAgent);
+                        }
+                        std::ranges::for_each(pCallSrv->getAgentList(), [](std::shared_ptr<Agent> p)
+                                              { std::cout << "dn:" << p->getDn() << " agent:" << p->getAgent() << std::endl; });
                         res = boost::beast::http::response<boost::beast::http::string_body>(http::status::ok, req.version());
-                        res.set(http::field::content_type, "application/json");
                         res.body() = R"({"code": 0,"msg":"success."})";
                     }
                 }
                 else if (req.target() == "/agent/logout")
                 {
+                    std::string dn, agent;
+                    if (pThis->parseAgent(req, dn, agent, res))
+                    {
+                    }
                 }
-                else if (req.target() == "/agent/makeBusy")
+                else if (req.target() == "/agent/ready")
                 {
+                    std::string dn, agent;
+                    if (pThis->parseAgent(req, dn, agent, res))
+                    {
+                    }
                 }
-                else if (req.target() == "/agent/makeIdle")
+                else if (req.target() == "/agent/notReady")
                 {
+                    std::string dn, agent;
+                    if (pThis->parseAgent(req, dn, agent, res))
+                    {
+                    }
                 }
                 else if (req.target() == "/agent/leave")
                 {
+                    std::string dn, agent;
+                    if (pThis->parseAgent(req, dn, agent, res))
+                    {
+                    }
                 }
                 else
                 {

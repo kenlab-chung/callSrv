@@ -5,34 +5,34 @@
   > Created Time: 2024-08-28
  ************************************************************************/
 
-#include "session.h"
+#include "WebsocketSession.h"
 
-session::session(tcp::socket socket) : ws_(std::move(socket))
+WebsocketSession::WebsocketSession(tcp::socket socket) : ws_(std::move(socket))
 {
 }
 
-session::~session()
+WebsocketSession::~WebsocketSession()
 {
 }
 
-void session::do_accept()
+void WebsocketSession::do_accept()
 {
     ws_.set_option(websocket::stream_base::decorator([](websocket::response_type &res)
                                                      { res.set(http::field::server, std::string(BOOST_BEAST_VERSION_STRING) + "websocket-server-async"); }));
-    ws_.async_accept(beast::bind_front_handler(&session::on_accept, shared_from_this()));
+    ws_.async_accept(beast::bind_front_handler(&WebsocketSession::on_accept, shared_from_this()));
 }
-void session::do_write(std::string message)
+void WebsocketSession::do_write(std::string message)
 {
-    ws_.async_write(net::buffer(message),beast::bind_front_handler(&session::on_write,shared_from_this()));
+    ws_.async_write(net::buffer(message),beast::bind_front_handler(&WebsocketSession::on_write,shared_from_this()));
 }
-void session::on_write(beast::error_code ec, std::size_t bytes_transferred)
+void WebsocketSession::on_write(beast::error_code ec, std::size_t bytes_transferred)
 {
     boost::ignore_unused(bytes_transferred);
     if(ec){
         return fail(ec,"write");
     }
 }
-void session::on_accept(beast::error_code ec)
+void WebsocketSession::on_accept(beast::error_code ec)
 {
     if (ec)
     {
@@ -40,11 +40,11 @@ void session::on_accept(beast::error_code ec)
     }
     do_read();
 }
-void session::do_read()
+void WebsocketSession::do_read()
 {
-    ws_.async_read(buffer_, beast::bind_front_handler(&session::on_read, shared_from_this()));
+    ws_.async_read(buffer_, beast::bind_front_handler(&WebsocketSession::on_read, shared_from_this()));
 }
-void session::on_read(beast::error_code ec, std::size_t bytes_transferred)
+void WebsocketSession::on_read(beast::error_code ec, std::size_t bytes_transferred)
 {
     boost::ignore_unused(bytes_transferred);
     if (ec)
@@ -57,12 +57,12 @@ void session::on_read(beast::error_code ec, std::size_t bytes_transferred)
     buffer_.consume(buffer_.size());
     do_read();
 }
-void session::fail(beast::error_code ec, char const *what)
+void WebsocketSession::fail(beast::error_code ec, char const *what)
 {
     std::cerr << what << ":" << ec.message() << std::endl;
 }
 
-void session::run()
+void WebsocketSession::run()
 {
     do_accept();
 }

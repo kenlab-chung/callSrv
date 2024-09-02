@@ -12,8 +12,8 @@
 #include <list>
 #include "Agent.h"
 #include <memory>
-#include "session.h"
-#include "server.h"
+#include "WebsocketSession.h"
+#include "WebsocketServer.h"
 class CallService
 {
 private:

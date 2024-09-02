@@ -22,11 +22,11 @@ namespace websocket = beast::websocket;
 namespace net = boost::asio;
 using tcp = net::ip::tcp;
 
-class session : public std::enable_shared_from_this<session>
+class WebsocketSession : public std::enable_shared_from_this<WebsocketSession>
 {
 public:
-    session(tcp::socket socket);
-    ~session();
+    WebsocketSession(tcp::socket socket);
+    ~WebsocketSession();
     void run();
 
 private:

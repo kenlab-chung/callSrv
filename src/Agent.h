@@ -1,7 +1,7 @@
 /*************************************************************************
   > File Name: Agent.h
   > Author: zhongqf
-  > Mail: zhongqf.cn@gmail.com 
+  > Mail: zhongqf.cn@gmail.com
   > Created Time: 2024-08-28
  ************************************************************************/
 #pragma once
@@ -21,9 +21,11 @@ public:
     void setDn(std::string dn) { m_strDN = dn; }
     void setAgent(std::string agent) { m_strAgent = agent; }
     void setPolling(bool bPolling) { m_bPolling = bPolling; }
+    void setAgentStatus(AgentStatus status_) { m_eStatus = status_; }
     std::string &getDn() { return m_strDN; }
     std::string &getAgent() { return m_strAgent; }
     bool getPolling() { return m_bPolling; }
+    AgentStatus getAgentStatus() { return m_eStatus; }
 
 private:
     std::string m_strDN;

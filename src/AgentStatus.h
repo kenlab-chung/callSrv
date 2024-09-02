@@ -9,7 +9,9 @@ enum class AgentStatus : unsigned
     unknown = 0,
     login = 101,
     logout = 102,
-    busy = 103,
-    idle =104,
-    leave = 105
+    notReady = 103,
+    Ready =104,
+    busy = 105,
+    idle =106,
+    leave = 107
 };
