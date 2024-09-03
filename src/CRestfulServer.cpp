@@ -120,6 +120,24 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                     std::string dn, agent;
                     if (pThis->parseAgent(req, dn, agent, res))
                     {
+                        std::shared_ptr<Agent> pAgent = std::make_shared<Agent>();
+                        pAgent->setDn(dn);
+
+                        auto it = std::find_if(pCallSrv->getAgentList().begin(), pCallSrv->getAgentList().end(), [&pAgent](const std::shared_ptr<Agent> &p)
+                                               { return p->getDn() == pAgent->getDn(); });
+                        if (it != pCallSrv->getAgentList().end())
+                        {
+                            pCallSrv->getAgentList().erase(it);
+                            res = boost::beast::http::response<boost::beast::http::string_body>(http::status::ok, req.version());
+                            res.body() = R"({"code": 0,"msg":"success."})";
+                        }
+                        else
+                        {
+                            res = boost::beast::http::response<boost::beast::http::string_body>(http::status::bad_request, req.version());
+                            res.body() = R"({"code":-1,"msg": "Dn Not Found."})";
+                        }
+                        std::ranges::for_each(pCallSrv->getAgentList(), [](std::shared_ptr<Agent> p)
+                                              { std::cout << "dn:" << p->getDn() << " agent:" << p->getAgent() << std::endl; });
                     }
                 }
                 else if (req.target() == "/agent/ready")
@@ -127,6 +145,22 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                     std::string dn, agent;
                     if (pThis->parseAgent(req, dn, agent, res))
                     {
+                        std::shared_ptr<Agent> pAgent = std::make_shared<Agent>();
+                        pAgent->setDn(dn);
+                         auto it = std::find_if(pCallSrv->getAgentList().begin(), pCallSrv->getAgentList().end(), [&pAgent](const std::shared_ptr<Agent> &p)
+                                               { return p->getDn() == pAgent->getDn(); });
+                        if (it != pCallSrv->getAgentList().end())
+                        {
+                            std::shared_ptr<Agent> p = *it;                           
+                            p->setAgentStatus(AgentStatus::Ready);
+                            res = boost::beast::http::response<boost::beast::http::string_body>(http::status::ok, req.version());
+                            res.body() = R"({"code": 0,"msg":"success."})";
+                        }
+                        else
+                        {
+                            res = boost::beast::http::response<boost::beast::http::string_body>(http::status::bad_request, req.version());
+                            res.body() = R"({"code":-1,"msg": "Dn Not Found."})";
+                        }
                     }
                 }
                 else if (req.target() == "/agent/notReady")
@@ -134,6 +168,22 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                     std::string dn, agent;
                     if (pThis->parseAgent(req, dn, agent, res))
                     {
+                        std::shared_ptr<Agent> pAgent = std::make_shared<Agent>();
+                        pAgent->setDn(dn);
+                         auto it = std::find_if(pCallSrv->getAgentList().begin(), pCallSrv->getAgentList().end(), [&pAgent](const std::shared_ptr<Agent> &p)
+                                               { return p->getDn() == pAgent->getDn(); });
+                        if (it != pCallSrv->getAgentList().end())
+                        {
+                            std::shared_ptr<Agent> p = *it;                           
+                            p->setAgentStatus(AgentStatus::notReady);
+                            res = boost::beast::http::response<boost::beast::http::string_body>(http::status::ok, req.version());
+                            res.body() = R"({"code": 0,"msg":"success."})";
+                        }
+                        else
+                        {
+                            res = boost::beast::http::response<boost::beast::http::string_body>(http::status::bad_request, req.version());
+                            res.body() = R"({"code":-1,"msg": "Dn Not Found."})";
+                        }
                     }
                 }
                 else if (req.target() == "/agent/leave")
@@ -141,6 +191,22 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                     std::string dn, agent;
                     if (pThis->parseAgent(req, dn, agent, res))
                     {
+                        std::shared_ptr<Agent> pAgent = std::make_shared<Agent>();
+                        pAgent->setDn(dn);
+                         auto it = std::find_if(pCallSrv->getAgentList().begin(), pCallSrv->getAgentList().end(), [&pAgent](const std::shared_ptr<Agent> &p)
+                                               { return p->getDn() == pAgent->getDn(); });
+                        if (it != pCallSrv->getAgentList().end())
+                        {
+                            std::shared_ptr<Agent> p = *it;                           
+                            p->setAgentStatus(AgentStatus::leave);
+                            res = boost::beast::http::response<boost::beast::http::string_body>(http::status::ok, req.version());
+                            res.body() = R"({"code": 0,"msg":"success."})";
+                        }
+                        else
+                        {
+                            res = boost::beast::http::response<boost::beast::http::string_body>(http::status::bad_request, req.version());
+                            res.body() = R"({"code":-1,"msg": "Dn Not Found."})";
+                        }
                     }
                 }
                 else
