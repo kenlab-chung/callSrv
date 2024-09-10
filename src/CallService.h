@@ -7,13 +7,16 @@
 #pragma once
 #include "esl.h"
 #include <string>
+#include <format>
 #include "curl.h"
 #include <iostream>
+#include <algorithm>
 #include <list>
 #include "Agent.h"
 #include <memory>
 #include "WebsocketSession.h"
 #include "WebsocketServer.h"
+
 class CallService
 {
 private:

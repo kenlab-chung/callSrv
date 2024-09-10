@@ -1,7 +1,7 @@
 /*************************************************************************
   > File Name: CallService.cpp
   > Author: zhongqf
-  > Mail: zhongqf.cn@gmail.com 
+  > Mail: zhongqf.cn@gmail.com
   > Created Time: 2024-08-28
  ************************************************************************/
 #include "CallService.h"
@@ -29,7 +29,7 @@ int CallService::loadconfig()
 
 bool CallService::startUp()
 {
-    // net::io_context ioc; 
+    // net::io_context ioc;
     // WebsocketServer s(ioc,tcp::endpoint(net::ip::make_address("0.0.0.0"),8081));
     // ioc.run();
 
@@ -46,7 +46,7 @@ bool CallService::startUp()
 void CallService::doService()
 {
     esl_global_set_default_logger(7);
-    esl_listen_threaded("192.168.1.91", 8040, CallService::callbackfun, nullptr, 100000);
+    esl_listen_threaded("192.168.1.91", 8040, CallService::callbackfun, this, 100000);
 }
 
 void CallService::stopService()
@@ -56,6 +56,7 @@ void CallService::stopService()
 
 void CallService::callbackfun(esl_socket_t server_sock, esl_socket_t client_sock, sockaddr_in *addr, void *user_data)
 {
+    CallService *pThis = (CallService *)user_data;
     esl_handle_t handle = {{0}};
     int done = 0;
     esl_status_t status;
@@ -71,7 +72,22 @@ void CallService::callbackfun(esl_socket_t server_sock, esl_socket_t client_sock
     esl_execute(&handle, "answer", NULL, NULL);
     // esl_execute(&handle, "conference", "3000@default", NULL);
     // esl_execute(&handle, "transfer", "1001 XML default", NULL);
-    esl_execute(&handle, "bridge", "user/1001", NULL);
+    esl_execute(&handle,"playback","/usr/local/freeswitch/sound/welcome.wav",NULL);
+    for (auto & agent_ : pThis->getAgentList())
+    {
+        if(agent_->getPolling()==false)
+        {
+            agent_->setPolling(true);
+            esl_execute(&handle, "bridge", std::format("user/{}",agent_->getDn().c_str()).c_str(), NULL);
+            break;
+        }
+    }
+    
+    auto it = std::find_if(pThis->getAgentList().begin(),pThis->getAgentList().end(),[](std::shared_ptr<Agent>& agent_){return agent_->getPolling() == false;});
+    if(it == pThis->getAgentList().end())
+    {
+        std::for_each(pThis->getAgentList().begin(),pThis->getAgentList().end(),[](auto x){x->setPolling(false);});
+    }
     while ((status = esl_recv_timed(&handle, 1000)) != ESL_FAIL)
     {
         if (done)
@@ -144,34 +160,35 @@ int CallService::HttpPost(const char *url, std::string data, std::string &respon
 
 int CallService::HttpGet(const char *url, std::string param, std::string &resp)
 {
-    CURL* curl = NULL;
-	CURLcode res = CURLE_FAILED_INIT;
-	curl = curl_easy_init();
-	if (curl == NULL)
-	{
-		const char* szError = curl_easy_strerror(res);		
-		return (int)CURLE_FAILED_INIT;
-	}
-	struct curl_slist* headerlist = NULL;
-	headerlist = curl_slist_append(headerlist, "Content-Type:application/x-www-form-urlencoded;charset=UTF-8");
-	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerlist);
-	curl_easy_setopt(curl, CURLOPT_URL, url);
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, param);
-	curl_easy_setopt(curl, CURLOPT_POST, 1L);
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CallService::writedata);
-	std::string response;
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (char*)&response);
-	res = curl_easy_perform(curl);
-	if (res != CURLE_OK)
-	{
-		const char* szError = curl_easy_strerror(res);		
-	}
-	else {
-		resp = response;		
-	}
-	curl_slist_free_all(headerlist);
-	curl_easy_cleanup(curl);
-	return (int)res;
+    CURL *curl = NULL;
+    CURLcode res = CURLE_FAILED_INIT;
+    curl = curl_easy_init();
+    if (curl == NULL)
+    {
+        const char *szError = curl_easy_strerror(res);
+        return (int)CURLE_FAILED_INIT;
+    }
+    struct curl_slist *headerlist = NULL;
+    headerlist = curl_slist_append(headerlist, "Content-Type:application/x-www-form-urlencoded;charset=UTF-8");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerlist);
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, param);
+    curl_easy_setopt(curl, CURLOPT_POST, 1L);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CallService::writedata);
+    std::string response;
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (char *)&response);
+    res = curl_easy_perform(curl);
+    if (res != CURLE_OK)
+    {
+        const char *szError = curl_easy_strerror(res);
+    }
+    else
+    {
+        resp = response;
+    }
+    curl_slist_free_all(headerlist);
+    curl_easy_cleanup(curl);
+    return (int)res;
 }
 
 int CallService::writedata(void *buffer, int size, int nmemb, void *userPtr)
