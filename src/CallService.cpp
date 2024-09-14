@@ -40,13 +40,87 @@ bool CallService::startUp()
         CRestfulServer server;
         server.runner(port,this); }, 8080)}
         .detach();
+
+    esl_global_set_default_logger(7);
+    std::thread{
+        std::bind([this]()
+                  { esl_listen_threaded("192.168.1.91", 8040, CallService::callbackfun, this, 100000); })}
+        .detach();
+
+    std::thread{
+        std::bind([this]()
+                  {
+                      esl_handle_t handle = {0};
+                      while (true)
+                      {
+                          if (esl_connect_timeout(&handle, "192.168.1.2", 8021, "", "ClueCon", 3000))
+                          {
+                              esl_log(ESL_LOG_ERROR, "Error Connecteling [%s]\n", handle.err);
+                              continue;
+                          }
+                          break;
+                      }
+
+                      esl_thread_create_detached(CallService::eventThreadFun, &handle);
+                      esl_events(&handle, ESL_EVENT_TYPE_PLAIN, "ALL");
+                     // esl_events(&handle, ESL_EVENT_TYPE_PLAIN, "CHANNEL_HANGUP_COMPLETE");
+
+                      char cmd_str[2048] = {0};
+                      snprintf(cmd_str, sizeof(cmd_str), "api version\n\n");
+                      esl_send_recv(&handle, cmd_str);
+                      if (handle.last_sr_event && handle.last_sr_event->body) {
+                         esl_log(ESL_LOG_INFO, "%s\n", handle.last_sr_event->body);
+                     }
+
+                     snprintf(cmd_str, sizeof(cmd_str), "api originate user/1003 &echo\n\n");
+                    esl_send_recv(&handle, cmd_str);
+                    if (handle.last_sr_event && handle.last_sr_event->body) {
+                        esl_log(ESL_LOG_INFO, "%s\n", handle.last_sr_event->body);
+                    }
+                    
+                      while (this->m_bRunning)
+                      {
+                          std::this_thread::sleep_for(std::chrono::microseconds(1000));
+                      }
+
+                      esl_disconnect(&handle); })}
+
+        .detach();
     return true;
+}
+void *CallService::eventThreadFun(esl_thread_t *e, void *obj)
+{
+    esl_handle_t *handle = (esl_handle_t *)obj;
+    while (handle->connected)
+    {
+        esl_status_t status;
+        status = esl_recv_event_timed(handle, 10, 1, NULL);
+        switch (status)
+        {
+        case ESL_BREAK:
+            std::this_thread::sleep_for(std::chrono::microseconds(1));
+            break;
+        case ESL_FAIL:
+            esl_log(ESL_LOG_WARNING, "Disconnected.\n");
+            break;
+        case ESL_SUCCESS:
+            esl_log(ESL_LOG_INFO, "coming event_body:%xs\n", handle->last_event);
+            if (handle->last_event->body)
+            {
+                esl_log(ESL_LOG_INFO, "event_body:%s\n", handle->last_event->body);
+            }
+            break;
+        }
+    }
+    return nullptr;
 }
 
 void CallService::doService()
 {
-    esl_global_set_default_logger(7);
-    esl_listen_threaded("192.168.1.91", 8040, CallService::callbackfun, this, 100000);
+    while (m_bRunning)
+    {
+        std::this_thread::sleep_for(std::chrono::microseconds(200));
+    }
 }
 
 void CallService::stopService()
@@ -72,21 +146,23 @@ void CallService::callbackfun(esl_socket_t server_sock, esl_socket_t client_sock
     esl_execute(&handle, "answer", NULL, NULL);
     // esl_execute(&handle, "conference", "3000@default", NULL);
     // esl_execute(&handle, "transfer", "1001 XML default", NULL);
-    esl_execute(&handle,"playback","/usr/local/freeswitch/sound/welcome.wav",NULL);
-    for (auto & agent_ : pThis->getAgentList())
+    esl_execute(&handle, "playback", "/usr/local/freeswitch/sound/welcome.wav", NULL);
+    for (auto &agent_ : pThis->getAgentList())
     {
-        if(agent_->getPolling()==false)
+        if (agent_->getPolling() == false)
         {
             agent_->setPolling(true);
-            esl_execute(&handle, "bridge", std::format("user/{}",agent_->getDn().c_str()).c_str(), NULL);
+            esl_execute(&handle, "bridge", std::format("user/{}", agent_->getDn().c_str()).c_str(), NULL);
             break;
         }
     }
-    
-    auto it = std::find_if(pThis->getAgentList().begin(),pThis->getAgentList().end(),[](std::shared_ptr<Agent>& agent_){return agent_->getPolling() == false;});
-    if(it == pThis->getAgentList().end())
+
+    auto it = std::find_if(pThis->getAgentList().begin(), pThis->getAgentList().end(), [](std::shared_ptr<Agent> &agent_)
+                           { return agent_->getPolling() == false; });
+    if (it == pThis->getAgentList().end())
     {
-        std::for_each(pThis->getAgentList().begin(),pThis->getAgentList().end(),[](auto x){x->setPolling(false);});
+        std::for_each(pThis->getAgentList().begin(), pThis->getAgentList().end(), [](auto x)
+                      { x->setPolling(false); });
     }
     while ((status = esl_recv_timed(&handle, 1000)) != ESL_FAIL)
     {
