@@ -9,9 +9,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include_directories(${PROJECT_SOURCE_DIR}/inc
                     /opt/boost_1_85_0
                     /opt/rapidjson/include
+                    ./libpqxx/include
                     )
 link_directories(${PROJECT_SOURCE_DIR}/lib
                     /opt/boost_1_85_0/stage/lib
+                    ./libpqxx/lib                  
 )
 
 add_executable(${PROJECT_NAME} src/main.cpp)
@@ -22,5 +24,16 @@ target_sources(${PROJECT_NAME}  PRIVATE src/CallService.cpp
                                         )
 
 target_link_libraries(${PROJECT_NAME}  libesl.a
-                                    libcurl.a)
+                                    libcurl.a
+                                    libpqxx.a
+                                    libpq.a
+                                    libecpg.a
+                                    libecpg_compat.a
+                                    libpgcommon.a
+                                    libpgcommon_shlib.a
+                                    libpgfeutils.a
+                                    libpgport.a
+                                    libpgport_shlib.a
+                                    libpgtypes.a
+                                  )
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)

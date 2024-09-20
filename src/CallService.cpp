@@ -11,8 +11,20 @@
 #include <boost/asio.hpp>
 #include <boost/system/error_code.hpp>
 #include <boost/asio/executor_work_guard.hpp>
+#include <pqxx/pqxx>
+
+/******************************************************
+ * postgresql dev lib
+ * sudo apt-get install libpq-dev
+ * git clone https://github.com/jtv/libpqxx.git
+ * mkdir build && cd build
+ * cmake .. -DCMAKE_INSTALL_PREFIX=/opt/libpqxx
+ * make
+ * sudo make install
+ ******************************************************/
 
 bool CallService::m_bRunning = false;
+
 CallService::CallService(/* args */)
 {
     m_bRunning = false;
@@ -29,11 +41,44 @@ int CallService::loadconfig()
 
 bool CallService::startUp()
 {
-    // net::io_context ioc;
-    // WebsocketServer s(ioc,tcp::endpoint(net::ip::make_address("0.0.0.0"),8081));
-    // ioc.run();
+    try
+    {
+        pqxx::connection conn("dbname=postgres user=postgres password=postgres hostaddr=192.168.1.92 port=5432");
+        pqxx::work txn(conn);
+        pqxx::result res = txn.exec("select version()");
+        std::cout << "Server version: " << res[0][0].as<std::string>() << std::endl;
+
+        std::string query = "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'calls_ex');";
+        res = txn.exec(query);
+        bool exists = res[0][0].as<bool>();
+        if (exists)
+        {
+            std::cout << "Existed Table: " << "calls_ex" << std::endl;
+        }
+        else
+        {
+            std::cout << "None Existed Table: " << "calls_ex. It will be created..." << std::endl;
+            std::string createTableQuery = "CREATE TABLE calls_ex(id SERIAL PRIMARY KEY, name VARCHAR(255));";
+            txn.exec(createTableQuery);
+
+            std::cout << "Created Table: " << "calls_ex" << std::endl;
+        }
+        txn.commit();
+    }
+    catch (const std::exception &e)
+    {
+        std::cout << "pg: " << e.what() << std::endl;
+    }
+    return true;
 
     m_bRunning = true;
+
+    std::thread{std::bind([this](int port)
+                          {
+        net::io_context ioc;
+        WebsocketServer s(ioc,tcp::endpoint(net::ip::make_address("0.0.0.0"),port));
+        ioc.run(); }, 8081)}
+        .detach();
 
     std::thread{std::bind([this](int port)
                           {
@@ -78,12 +123,12 @@ bool CallService::startUp()
                         esl_log(ESL_LOG_INFO, "%s\n", handle.last_sr_event->body);
                     }
                     
-                      while (this->m_bRunning)
-                      {
-                          std::this_thread::sleep_for(std::chrono::microseconds(1000));
-                      }
+                    while (this->m_bRunning)
+                    {
+                        std::this_thread::sleep_for(std::chrono::microseconds(1000));
+                    }
 
-                      esl_disconnect(&handle); })}
+                    esl_disconnect(&handle); })}
 
         .detach();
     return true;
@@ -98,18 +143,78 @@ void *CallService::eventThreadFun(esl_thread_t *e, void *obj)
         switch (status)
         {
         case ESL_BREAK:
+        {
             std::this_thread::sleep_for(std::chrono::microseconds(1));
-            break;
+        }
+        break;
         case ESL_FAIL:
+        {
             esl_log(ESL_LOG_WARNING, "Disconnected.\n");
-            break;
+        }
+        break;
         case ESL_SUCCESS:
+        {
             esl_log(ESL_LOG_INFO, "coming event_body:%xs\n", handle->last_event);
             if (handle->last_event->body)
             {
                 esl_log(ESL_LOG_INFO, "event_body:%s\n", handle->last_event->body);
             }
+            esl_event_t *pEvent = handle->last_ievent;
+            switch (pEvent->event_id)
+            {
+            case ESL_EVENT_CUSTOM:
+            {
+            }
             break;
+            case ESL_EVENT_RECORD_START:
+            {
+            }
+            break;
+            case ESL_EVENT_RECORD_STOP:
+            {
+            }
+            break;
+            case ESL_EVENT_CHANNEL_PROGRESS:
+            {
+            }
+            break;
+            case ESL_EVENT_CHANNEL_PROGRESS_MEDIA: // ring
+            {
+            }
+            break;
+            case ESL_EVENT_CHANNEL_ANSWER:
+            {
+            }
+            break;
+            case ESL_EVENT_CHANNEL_HANGUP:
+            {
+            }
+            break;
+            case ESL_EVENT_CHANNEL_BRIDGE:
+            {
+            }
+            break;
+            case ESL_EVENT_CHANNEL_UNBRIDGE:
+            {
+            }
+            break;
+            case ESL_EVENT_CHANNEL_HOLD:
+            {
+            }
+            break;
+            case ESL_EVENT_CHANNEL_UNHOLD:
+            {
+            }
+            break;
+            case ESL_EVENT_DTMF:
+            {
+            }
+            break;
+            default:
+                break;
+            }
+        }
+        break;
         }
     }
     return nullptr;
@@ -152,7 +257,11 @@ void CallService::callbackfun(esl_socket_t server_sock, esl_socket_t client_sock
         if (agent_->getPolling() == false)
         {
             agent_->setPolling(true);
-            esl_execute(&handle, "bridge", std::format("user/{}", agent_->getDn().c_str()).c_str(), NULL);
+
+            std::string routeAgent = "user/";
+            routeAgent += agent_->getDn();
+
+            esl_execute(&handle, "bridge", routeAgent.c_str(), NULL);
             break;
         }
     }

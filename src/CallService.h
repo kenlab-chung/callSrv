@@ -33,11 +33,11 @@ public:
     void stopService();
     void hello() { std::cout << "hello from CallService" << std::endl; }
     std::list<std::shared_ptr<Agent>> &getAgentList() { return m_listAgent; }
-
+public:
+    static int HttpPost(const char *url, std::string data, std::string &response, int timeout = 0);
+    static int HttpGet(const char *url, std::string param, std::string &resp);
+    static int writedata(void *buffer, int size, int nmemb, void *userPtr);
 private:
     static void callbackfun(esl_socket_t server_sock, esl_socket_t client_sock, struct sockaddr_in *addr, void *user_data);
     static void *eventThreadFun(esl_thread_t *e, void *obj);
-    int HttpPost(const char *url, std::string data, std::string &response, int timeout = 0);
-    int HttpGet(const char *url, std::string param, std::string &resp);
-    static int writedata(void *buffer, int size, int nmemb, void *userPtr);
 };
