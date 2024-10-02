@@ -43,7 +43,8 @@ bool CallService::startUp()
 {
     try
     {
-        pqxx::connection conn("dbname=postgres user=postgres password=postgres hostaddr=192.168.1.92 port=5432");
+ //       pqxx::connection conn("dbname=postgres user=postgres password=postgres hostaddr=192.168.1.92 port=5432");
+        pqxx::connection conn("dbname=postgres user=postgres password=postgres hostaddr=127.0.0.1 port=5432");
         pqxx::work txn(conn);
         pqxx::result res = txn.exec("select version()");
         std::cout << "Server version: " << res[0][0].as<std::string>() << std::endl;

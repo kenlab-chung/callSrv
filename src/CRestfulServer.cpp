@@ -193,7 +193,7 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                     {
                         std::shared_ptr<Agent> pAgent = std::make_shared<Agent>();
                         pAgent->setDn(dn);
-                         auto it = std::find_if(pCallSrv->getAgentList().begin(), pCallSrv->getAgentList().end(), [&pAgent](const std::shared_ptr<Agent> &p)
+                        auto it = std::find_if(pCallSrv->getAgentList().begin(), pCallSrv->getAgentList().end(), [&pAgent](const std::shared_ptr<Agent> &p)
                                                { return p->getDn() == pAgent->getDn(); });
                         if (it != pCallSrv->getAgentList().end())
                         {
@@ -209,6 +209,33 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                         }
                     }
                 }
+		else if(req.target()=="/call/makecall")
+		{
+                    std::string dn, agent;
+                    if (pThis->parseAgent(req, dn, agent, res))
+		    {
+
+		    }
+
+		}
+		else if(req.target()=="/call/answer")
+		{
+                    std::string dn, agent;
+                    if (pThis->parseAgent(req, dn, agent, res))
+		    {
+
+		    }
+
+		}
+		else if(req.target()=="/call/hangup")
+		{
+                    std::string dn, agent;
+                    if (pThis->parseAgent(req, dn, agent, res))
+		    {
+
+		    }
+
+		}
                 else
                 {
                     res = boost::beast::http::response<boost::beast::http::string_body>(http::status::bad_request, req.version());
