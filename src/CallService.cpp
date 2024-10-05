@@ -70,7 +70,7 @@ bool CallService::startUp()
     {
         std::cout << "pg: " << e.what() << std::endl;
     }
-    return true;
+
 
     m_bRunning = true;
 
@@ -78,19 +78,22 @@ bool CallService::startUp()
                           {
         net::io_context ioc;
         WebsocketServer s(ioc,tcp::endpoint(net::ip::make_address("0.0.0.0"),port));
-        ioc.run(); }, 8081)}
+        ioc.run(); }, 18081)}
         .detach();
-
     std::thread{std::bind([this](int port)
                           {
         CRestfulServer server;
-        server.runner(port,this); }, 8080)}
+        server.runner(port,this);
+	 }, 18080)}
         .detach();
 
-    esl_global_set_default_logger(7);
+    esl_global_set_default_logger(6);
     std::thread{
         std::bind([this]()
-                  { esl_listen_threaded("192.168.1.91", 8040, CallService::callbackfun, this, 100000); })}
+                  { 
+		  //esl_listen_threaded("192.168.1.91", 8040, CallService::callbackfun, this, 100000);
+		  esl_listen_threaded("0.0.0.0", 18040, CallService::acd_callback, this, 100000);
+		  })}
         .detach();
 
     std::thread{
@@ -99,7 +102,7 @@ bool CallService::startUp()
                       esl_handle_t handle = {0};
                       while (true)
                       {
-                          if (esl_connect_timeout(&handle, "192.168.1.2", 8021, "", "ClueCon", 3000))
+                          if (esl_connect_timeout(&handle, "127.0.0.1", 8021, "", "ClueCon", 3000))
                           {
                               esl_log(ESL_LOG_ERROR, "Error Connecteling [%s]\n", handle.err);
                               continue;
@@ -234,6 +237,121 @@ void CallService::stopService()
     m_bRunning = false;
 }
 
+void CallService::acd_callback(esl_socket_t server_sock, esl_socket_t client_sock, sockaddr_in *addr, void *user_data)
+{
+    CallService *pThis = (CallService *)user_data;
+    esl_handle_t handle = {{0}};
+    esl_status_t status = ESL_SUCCESS;
+    std::shared_ptr<Agent> pAgent = nullptr;
+    esl_attach_handle(&handle, client_sock, addr);
+    
+    esl_log(ESL_LOG_INFO, "Connected! %d\n", handle.sock);
+    const char *cid_name,*cid_number;
+    cid_name = esl_event_get_header(handle.info_event,"Caller-Caller-ID-Name");
+    cid_number = esl_event_get_header(handle.info_event,"Caller-Caller-ID-Number");
+    esl_log(ESL_LOG_INFO,"New call from %s<%s>\n",cid_name,cid_number);
+    
+    esl_send_recv(&handle,"myevent");
+    esl_log(ESL_LOG_INFO,"%s\n",handle.last_sr_reply);
+    
+    esl_send_recv(&handle, "linger 5");
+    esl_log(ESL_LOG_INFO,"%s\n",handle.last_sr_reply);
+
+    esl_execute(&handle,"answer",NULL,NULL);
+    esl_execute(&handle,"set","tts_engine=tts_commandline",NULL);
+    esl_execute(&handle,"set","tts_voice=Ting-ting",NULL);
+    esl_execute(&handle,"set","continue_on_fail=true",NULL);
+    esl_execute(&handle,"set","hangup_after_bridge=true",NULL);
+    esl_execute(&handle,"speak","您好，欢迎致电，电话接通中，请稍后",NULL);
+    sleep(1);
+    esl_execute(&handle,"playback","local_stream://moh",NULL);
+    
+    while(status ==ESL_SUCCESS || status == ESL_BREAK)
+    {
+	    const char* type;
+	    const char* application;
+	    
+	    status = esl_recv_timed(&handle,1000);
+	    if(status == ESL_BREAK)
+	    {
+    		pAgent = pThis->get_available_agent();
+    		if(pAgent!=nullptr)
+    		{
+            		std::string routedAgent = "user/";
+            		routedAgent += pAgent->getDn();
+			esl_execute(&handle,"break",NULL,NULL);
+            		esl_execute(&handle, "bridge", routedAgent.c_str(), NULL);
+    			esl_log(ESL_LOG_INFO,"Calling to:%s\n",routedAgent.c_str());
+    		}
+		continue;
+	    }
+	    type = esl_event_get_header(handle.last_event,"content-type");
+	    if(type && !strcasecmp(type,"text/event-plain"))
+	    {
+		    const char* uuid = esl_event_get_header(handle.last_ievent,"Other-Leg-Unique-ID");
+		    switch(handle.last_ievent->event_id)
+		    {
+			    case ESL_EVENT_CHANNEL_BRIDGE:
+				if(pAgent)
+				{
+					pAgent->setUUID(uuid);
+				}
+    				esl_log(ESL_LOG_INFO,"Bridged to:%s\n",uuid);
+			    	break;
+			    case ESL_EVENT_CHANNEL_HANGUP_COMPLETE:
+				if(pAgent)
+				{
+					pThis->reset_agents(pAgent);
+					pAgent=nullptr;
+				}
+    				esl_log(ESL_LOG_INFO,"Caller:%s<%s> Hangup\n",cid_name,cid_number);
+			    	goto end;
+			    case ESL_EVENT_CHANNEL_EXECUTE_COMPLETE:
+				application = esl_event_get_header(handle.last_ievent,"Application");
+				if(!strcmp(application,"bridge"))
+				{
+					const char *disposition = esl_event_get_header(handle.last_ievent,"variable_originate_disposition");
+    					esl_log(ESL_LOG_INFO,"dispostion: %s\n",disposition);
+					if(!strcmp(disposition,"CALL_REJETED")||!strcmp(disposition,"USER_BUSY"))
+					{
+						pThis->reset_agents(pAgent);
+						pAgent = nullptr;
+					}
+
+				}
+				if(pAgent)
+				{
+					pThis->reset_agents(pAgent);
+				}
+    				esl_log(ESL_LOG_INFO,"Caller:%s<%s> Hangup\n",cid_name,cid_number);
+			    	break;
+			    default:
+				break;
+		    }
+	    }
+    }
+ end:
+    esl_log(ESL_LOG_INFO, "Disconnectd!%d\n", handle.sock);
+    esl_disconnect(&handle);
+}
+
+void CallService::reset_agents(std::shared_ptr<Agent> pAgent_)
+{
+	pAgent_->setPolling(false);
+}
+std::shared_ptr<Agent> CallService::get_available_agent()
+{
+    std::shared_ptr<Agent> pAgent = nullptr;
+    for(auto &agent_:getAgentList())
+    {
+	 if(agent_->getPolling()==false)
+	 {
+		agent_->setPolling(true);
+		pAgent = agent_;
+	 }
+    }
+    return pAgent;
+}
 void CallService::callbackfun(esl_socket_t server_sock, esl_socket_t client_sock, sockaddr_in *addr, void *user_data)
 {
     CallService *pThis = (CallService *)user_data;
