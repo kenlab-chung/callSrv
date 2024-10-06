@@ -87,7 +87,7 @@ bool CallService::startUp()
 	 }, 18080)}
         .detach();
 
-    esl_global_set_default_logger(6);
+    esl_global_set_default_logger(0);
     std::thread{
         std::bind([this]()
                   { 
@@ -158,11 +158,14 @@ void *CallService::eventThreadFun(esl_thread_t *e, void *obj)
         break;
         case ESL_SUCCESS:
         {
-            esl_log(ESL_LOG_INFO, "coming event_body:%xs\n", handle->last_event);
+            //esl_log(ESL_LOG_INFO, "coming event_body:%xs\n", handle->last_event);
             if (handle->last_event->body)
             {
-                esl_log(ESL_LOG_INFO, "event_body:%s\n", handle->last_event->body);
+               // esl_log(ESL_LOG_INFO, "event_body:%s\n", handle->last_event->body);
             }
+   	    const char *cid_dest,*cid_number;
+    	    cid_number = esl_event_get_header(handle->last_ievent,"Caller-Caller-ID-Number");
+	    cid_dest = esl_event_get_header(handle->last_ievent,"Caller-Destination-Number");
             esl_event_t *pEvent = handle->last_ievent;
             switch (pEvent->event_id)
             {
@@ -180,22 +183,32 @@ void *CallService::eventThreadFun(esl_thread_t *e, void *obj)
             break;
             case ESL_EVENT_CHANNEL_PROGRESS:
             {
+		    std::cout<<"channel progress "<<"caller:"<<cid_number<<" callee: "<<cid_dest<<std::endl;
             }
             break;
             case ESL_EVENT_CHANNEL_PROGRESS_MEDIA: // ring
             {
+		    std::cout<<"channel progres media "<<"caller:"<<cid_number<<" callee: "<<cid_dest<<std::endl;
             }
             break;
+	    case ESL_EVENT_CHANNEL_CREATE:
+	    {
+		    std::cout<<"channel create "<<"caller: "<<cid_number<<" callee: "<<cid_dest<<std::endl;
+	    }
+	    break;
             case ESL_EVENT_CHANNEL_ANSWER:
             {
+		    std::cout<<"channel answer " <<"caller: "<<cid_number<<" callee: "<<cid_dest<<std::endl;
             }
             break;
             case ESL_EVENT_CHANNEL_HANGUP:
             {
+		    std::cout<<"channel hangup "<<"caller: "<<cid_number<<" callee:"<<cid_dest<<std::endl;
             }
             break;
             case ESL_EVENT_CHANNEL_BRIDGE:
             {
+		    std::cout<<"channel bridge "<<"caller: "<<cid_number<<" callee: "<<cid_dest<<std::endl;
             }
             break;
             case ESL_EVENT_CHANNEL_UNBRIDGE:
