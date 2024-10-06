@@ -281,7 +281,7 @@ void CallService::acd_callback(esl_socket_t server_sock, esl_socket_t client_soc
             		routedAgent += pAgent->getDn();
 			esl_execute(&handle,"break",NULL,NULL);
             		esl_execute(&handle, "bridge", routedAgent.c_str(), NULL);
-    			esl_log(ESL_LOG_INFO,"Calling to:%s\n",routedAgent.c_str());
+    			esl_log(ESL_LOG_INFO,"CSPBX Calling to:%s\n",routedAgent.c_str());
     		}
 		continue;
 	    }
@@ -296,7 +296,7 @@ void CallService::acd_callback(esl_socket_t server_sock, esl_socket_t client_soc
 				{
 					pAgent->setUUID(uuid);
 				}
-    				esl_log(ESL_LOG_INFO,"Bridged to:%s\n",uuid);
+    				esl_log(ESL_LOG_INFO,"CSPBX Bridged to:%s\n",uuid);
 			    	break;
 			    case ESL_EVENT_CHANNEL_HANGUP_COMPLETE:
 				if(pAgent)
@@ -304,7 +304,7 @@ void CallService::acd_callback(esl_socket_t server_sock, esl_socket_t client_soc
 					pThis->reset_agents(pAgent);
 					pAgent=nullptr;
 				}
-    				esl_log(ESL_LOG_INFO,"Caller:%s<%s> Hangup\n",cid_name,cid_number);
+    				esl_log(ESL_LOG_INFO,"CSPBX Caller:%s<%s> Hangup\n",cid_name,cid_number);
 			    	goto end;
 			    case ESL_EVENT_CHANNEL_EXECUTE_COMPLETE:
 				application = esl_event_get_header(handle.last_ievent,"Application");
@@ -323,7 +323,7 @@ void CallService::acd_callback(esl_socket_t server_sock, esl_socket_t client_soc
 				{
 					pThis->reset_agents(pAgent);
 				}
-    				esl_log(ESL_LOG_INFO,"Caller:%s<%s> Hangup\n",cid_name,cid_number);
+    				esl_log(ESL_LOG_INFO,"CSPBX Caller:%s<%s> Hangup\n",cid_name,cid_number);
 			    	break;
 			    default:
 				break;
