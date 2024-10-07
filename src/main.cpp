@@ -54,8 +54,8 @@ again:
 }
 int main(int argc,char* argv[],char* envp[])
 {
-    //freopen("esl_log.log", "a", stdout);
-    //freopen("esl_log.log", "a", stderr);
+   // freopen("esl_log.log", "a", stdout);
+   // freopen("esl_log.log", "a", stderr);
     char config[260]={0};
     if(argc>1 && strcmp(argv[1],"-v")==0)
     {

@@ -163,9 +163,14 @@ void *CallService::eventThreadFun(esl_thread_t *e, void *obj)
             {
                // esl_log(ESL_LOG_INFO, "event_body:%s\n", handle->last_event->body);
             }
-   	    const char *cid_dest,*cid_number;
+   	    const char *cid_dest,*cid_number,*uuid,*cause,*hangup_disposition;
     	    cid_number = esl_event_get_header(handle->last_ievent,"Caller-Caller-ID-Number");
 	    cid_dest = esl_event_get_header(handle->last_ievent,"Caller-Destination-Number");
+	    cause = esl_event_get_header(handle->last_ievent,"Hangup-Cause");
+	    hangup_disposition = esl_event_get_header(handle->last_ievent,"variable_sip_hangup_disposition");
+	    uuid = esl_event_get_header(handle->last_ievent,"Unique-ID");
+	    char szMsg[1024]={0};
+	    sprintf(szMsg,"UUID:%s Caller: %s Callee:%s HangupCause:%s hangup_disposition:%s",uuid,cid_number,cid_dest,cause,hangup_disposition);
             esl_event_t *pEvent = handle->last_ievent;
             switch (pEvent->event_id)
             {
@@ -183,34 +188,50 @@ void *CallService::eventThreadFun(esl_thread_t *e, void *obj)
             break;
             case ESL_EVENT_CHANNEL_PROGRESS:
             {
-		    std::cout<<"channel progress "<<"caller:"<<cid_number<<" callee: "<<cid_dest<<std::endl;
+		    std::cout<<"channel progress "<<szMsg<<std::endl;
             }
             break;
             case ESL_EVENT_CHANNEL_PROGRESS_MEDIA: // ring
             {
-		    std::cout<<"channel progres media "<<"caller:"<<cid_number<<" callee: "<<cid_dest<<std::endl;
+		    std::cout<<"channel progres media "<<szMsg<<std::endl;
             }
             break;
 	    case ESL_EVENT_CHANNEL_CREATE:
 	    {
-		    std::cout<<"channel create "<<"caller: "<<cid_number<<" callee: "<<cid_dest<<std::endl;
+		    std::cout<<"channel create "<<szMsg<<std::endl;
 	    }
 	    break;
             case ESL_EVENT_CHANNEL_ANSWER:
             {
-		    std::cout<<"channel answer " <<"caller: "<<cid_number<<" callee: "<<cid_dest<<std::endl;
+		    std::cout<<"channel answer " <<szMsg<<std::endl;
             }
             break;
             case ESL_EVENT_CHANNEL_HANGUP:
             {
-		    std::cout<<"channel hangup "<<"caller: "<<cid_number<<" callee:"<<cid_dest<<std::endl;
+		    std::cout<<"channel hangup "<<szMsg<<std::endl;
             }
             break;
             case ESL_EVENT_CHANNEL_BRIDGE:
             {
-		    std::cout<<"channel bridge "<<"caller: "<<cid_number<<" callee: "<<cid_dest<<std::endl;
+		    std::cout<<"channel bridge "<<szMsg<<std::endl;
             }
             break;
+	    case ESL_EVENT_CHANNEL_HANGUP_COMPLETE:
+	    {
+		    std::cout<<"channel hangup_complete "<<szMsg<<std::endl;
+		    if (hangup_disposition) {
+                        if (std::string(hangup_disposition) == "recv_bye") {
+                            std::cout << "The caller hung up (Caller: " << cid_number << ", Callee: " << cid_dest << ")" << std::endl;
+                        } else if (std::string(hangup_disposition) == "send_bye") {
+                            std::cout << "The callee hung up (Caller: " << cid_number << ", Callee: " << cid_dest << ")" << std::endl;
+                        } else {
+                            std::cout << "Hangup cause: " << cause << std::endl;
+                        }
+                    } else {
+                        std::cout << "Hangup cause: " << cause << std::endl;
+                    }
+	    }
+	    break;
             case ESL_EVENT_CHANNEL_UNBRIDGE:
             {
             }
@@ -357,11 +378,19 @@ std::shared_ptr<Agent> CallService::get_available_agent()
     std::shared_ptr<Agent> pAgent = nullptr;
     for(auto &agent_:getAgentList())
     {
-	 if(agent_->getPolling()==false)
+	 if(agent_->getPolling()==false && agent_->getAgentStatus()==AgentStatus::Ready)
 	 {
 		agent_->setPolling(true);
 		pAgent = agent_;
+		break;
 	 }
+    }
+    auto it = std::find_if(getAgentList().begin(), getAgentList().end(), [](std::shared_ptr<Agent> &agent_)
+                           { return agent_->getPolling() == false; });
+    if (it == getAgentList().end())
+    {
+        std::for_each(getAgentList().begin(), getAgentList().end(), [](auto x)
+                      { x->setPolling(false); });
     }
     return pAgent;
 }

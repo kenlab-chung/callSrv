@@ -93,7 +93,7 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                         pAgent->setDn(dn);
                         pAgent->setAgent(agent);
                         pAgent->setPolling(false);
-                        pAgent->setAgentStatus(AgentStatus::notReady);
+                        pAgent->setAgentStatus(AgentStatus::Ready);
 
                         auto it = std::find_if(pCallSrv->getAgentList().begin(), pCallSrv->getAgentList().end(), [&pAgent](const std::shared_ptr<Agent> &p)
                                                { return p->getDn() == pAgent->getDn(); });
@@ -103,7 +103,7 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                             std::shared_ptr<Agent> p = *it;
                             p->setAgent(agent);
                             p->setPolling(false);
-                            p->setAgentStatus(AgentStatus::notReady);
+                            p->setAgentStatus(AgentStatus::Ready);
                         }
                         else
                         {
