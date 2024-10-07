@@ -17,13 +17,15 @@
 #include <memory>
 #include "WebsocketSession.h"
 #include "WebsocketServer.h"
-
+#include <queue>
+#include "CallData.h"
 class CallService
 {
 private:
     static bool m_bRunning;
     std::list<std::shared_ptr<Agent>> m_listAgent;
     esl_handle_t m_handle;
+    std::queue<std::shared_ptr<CallData>> m_queueEvent;
 public:
     CallService();
     ~CallService();

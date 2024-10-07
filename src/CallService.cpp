@@ -12,7 +12,6 @@
 #include <boost/system/error_code.hpp>
 #include <boost/asio/executor_work_guard.hpp>
 #include <pqxx/pqxx>
-
 /******************************************************
  * postgresql dev lib
  * sudo apt-get install libpq-dev
@@ -306,7 +305,25 @@ void CallService::doService()
 {
     while (m_bRunning)
     {
-        std::this_thread::sleep_for(std::chrono::microseconds(200));
+	if(m_queueEvent.empty())
+	{
+	   std::this_thread::sleep_for(std::chrono::microseconds(200));
+	   continue;
+	}
+	std::shared_ptr<CallData> pData = m_queueEvent.front();
+	m_queueEvent.pop();
+
+	std::string res,url,call_in_url="",call_out_url="";
+	if(pData->getDir()==CallDir::callin)
+	{
+		url = call_in_url;
+	}
+	else
+	{
+		url = call_out_url;
+	}
+
+    	int nRet =HttpPost(url.c_str(),pData->getData().c_str(), res, 0);
     }
 }
 
