@@ -21,6 +21,34 @@ void CRestfulServer::runner(unsigned short port, void *argv)
         std::thread{std::bind(do_session, std::move(socket), argv, this)}.detach();
     }
 }
+bool CRestfulServer::parseCalldata(http::request<http::string_body>&req,std::string& Dn_,std::string& dst_,http::response<http::string_body>&res)
+{
+    rapidjson::Document doc;
+    if (doc.Parse(req.body().c_str()).HasParseError())
+    {
+        res = boost::beast::http::response<boost::beast::http::string_body>(http::status::not_acceptable, req.version());
+        res.body() = R"({"code":-1,"msg": "Data not acceptable."})";
+        return false;
+    }
+    else
+    {
+        if (doc.HasMember("dn") && doc["dn"].IsString())
+        {
+            Dn_ = doc["dn"].GetString();
+        }
+        if (doc.HasMember("callee") && doc["callee"].IsString())
+        {
+            dst_ = doc["callee"].GetString();
+        }
+    }
+    if (Dn_.empty() && dst_.empty())
+    {
+        res = boost::beast::http::response<boost::beast::http::string_body>(http::status::not_acceptable, req.version());
+        res.body() = R"({"code":-1,"msg": "Data not acceptable."})";
+        return false;
+    }
+    return true;
+}
 bool CRestfulServer::parseAgent(http::request<http::string_body> &req, std::string &Dn_, std::string &Agent_, http::response<http::string_body> &res)
 {
     rapidjson::Document doc;
@@ -42,7 +70,7 @@ bool CRestfulServer::parseAgent(http::request<http::string_body> &req, std::stri
         }
         if (Agent_.empty())
         {
-            Agent_ = Dn_;
+            Agent_ = "9"+Dn_;
         }
     }
     if (Dn_.empty() && Agent_.empty())
@@ -211,10 +239,10 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                 }
 		else if(req.target()=="/call/makecall")
 		{
-                    std::string dn, agent;
-                    if (pThis->parseAgent(req, dn, agent, res))
+                    std::string dn, obj;
+                    if (pThis->parseCalldata(req, dn, obj, res))
 		    {
-
+			    pCallSrv->makecall(dn,obj);
 		    }
 
 		}
@@ -223,7 +251,7 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                     std::string dn, agent;
                     if (pThis->parseAgent(req, dn, agent, res))
 		    {
-
+			    pCallSrv->answercall(dn);
 		    }
 
 		}
@@ -232,7 +260,7 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                     std::string dn, agent;
                     if (pThis->parseAgent(req, dn, agent, res))
 		    {
-
+			    pCallSrv->hangupcall(dn);
 		    }
 
 		}

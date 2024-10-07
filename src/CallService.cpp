@@ -24,10 +24,11 @@
  ******************************************************/
 
 bool CallService::m_bRunning = false;
-
+CallService* g_srv =nullptr;
 CallService::CallService(/* args */)
 {
     m_bRunning = false;
+    g_srv =this;
 }
 
 CallService::~CallService()
@@ -114,6 +115,7 @@ bool CallService::startUp()
                       esl_events(&handle, ESL_EVENT_TYPE_PLAIN, "ALL");
                      // esl_events(&handle, ESL_EVENT_TYPE_PLAIN, "CHANNEL_HANGUP_COMPLETE");
 
+		      this->setHandle(handle);
                       char cmd_str[2048] = {0};
                       snprintf(cmd_str, sizeof(cmd_str), "api version\n\n");
                       esl_send_recv(&handle, cmd_str);
@@ -136,6 +138,30 @@ bool CallService::startUp()
 
         .detach();
     return true;
+}
+int CallService::makecall(std::string dn_,std::string dst_)
+{
+    auto it = std::find_if(getAgentList().begin(), getAgentList().end(), [dn_](std::shared_ptr<Agent> &agent_)
+                           { return agent_->getDn() == dn_; });
+    if (it == getAgentList().end())
+    {
+	    return -1;
+    }
+    std::string command = "api uuid_answer " + (*it)->getUUID();
+    esl_send_recv(getHandle(), command.c_str());
+    if (getHandle()->last_sr_event && getHandle()->last_sr_event->body) {
+	    esl_log(ESL_LOG_INFO, "%s\n", getHandle()->last_sr_event->body);
+    }
+   
+    return 0;
+}
+int CallService::answercall(std::string dn_)
+{
+	return 0;
+}
+int CallService::hangupcall(std::string dn_)
+{
+	return 0;
 }
 void *CallService::eventThreadFun(esl_thread_t *e, void *obj)
 {
@@ -198,7 +224,13 @@ void *CallService::eventThreadFun(esl_thread_t *e, void *obj)
             break;
 	    case ESL_EVENT_CHANNEL_CREATE:
 	    {
-		    std::cout<<"channel create "<<szMsg<<std::endl;
+		std::cout<<"channel create "<<szMsg<<std::endl;
+    		auto it = std::find_if(g_srv->getAgentList().begin(), g_srv->getAgentList().end(), [cid_dest](std::shared_ptr<Agent> &agent_)
+                           { return agent_->getDn() == std::string(cid_dest); });
+		if(it != g_srv->getAgentList().end())
+		{
+			(*it)->setUUID(uuid);
+		}
 	    }
 	    break;
             case ESL_EVENT_CHANNEL_ANSWER:
@@ -208,7 +240,7 @@ void *CallService::eventThreadFun(esl_thread_t *e, void *obj)
             break;
             case ESL_EVENT_CHANNEL_HANGUP:
             {
-		    std::cout<<"channel hangup "<<szMsg<<std::endl;
+		 std::cout<<"channel hangup "<<szMsg<<std::endl;
             }
             break;
             case ESL_EVENT_CHANNEL_BRIDGE:
@@ -230,6 +262,18 @@ void *CallService::eventThreadFun(esl_thread_t *e, void *obj)
                     } else {
                         std::cout << "Hangup cause: " << cause << std::endl;
                     }
+		    for(auto &agent_:g_srv->getAgentList())
+		    {
+			    if(agent_->getDn()==std::string(cid_dest))
+			    {
+				    agent_->setPolling(false);
+				    agent_->setUUID("");
+				    std::cout<<"successful"<<std::endl;
+				    break;
+			    }
+			    std::string state = agent_->getPolling()==true?"True":"False";
+			    std::cout<<"dn:"<<agent_->getDn()<<" state:"<<state.c_str()<<std::endl;
+		    }
 	    }
 	    break;
             case ESL_EVENT_CHANNEL_UNBRIDGE:
@@ -316,6 +360,7 @@ void CallService::acd_callback(esl_socket_t server_sock, esl_socket_t client_soc
 			esl_execute(&handle,"break",NULL,NULL);
             		esl_execute(&handle, "bridge", routedAgent.c_str(), NULL);
     			esl_log(ESL_LOG_INFO,"CSPBX Calling to:%s\n",routedAgent.c_str());
+			break;
     		}
 		continue;
 	    }
@@ -378,19 +423,14 @@ std::shared_ptr<Agent> CallService::get_available_agent()
     std::shared_ptr<Agent> pAgent = nullptr;
     for(auto &agent_:getAgentList())
     {
+	 std::string state = agent_->getPolling()==true?"True":"False";
+	 std::cout<<"dn:"<<agent_->getDn()<<" status:"<<(int)agent_->getAgentStatus()<<" state:"<<state.c_str()<<std::endl;
 	 if(agent_->getPolling()==false && agent_->getAgentStatus()==AgentStatus::Ready)
 	 {
 		agent_->setPolling(true);
 		pAgent = agent_;
 		break;
 	 }
-    }
-    auto it = std::find_if(getAgentList().begin(), getAgentList().end(), [](std::shared_ptr<Agent> &agent_)
-                           { return agent_->getPolling() == false; });
-    if (it == getAgentList().end())
-    {
-        std::for_each(getAgentList().begin(), getAgentList().end(), [](auto x)
-                      { x->setPolling(false); });
     }
     return pAgent;
 }

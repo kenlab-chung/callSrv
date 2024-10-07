@@ -23,7 +23,7 @@ class CallService
 private:
     static bool m_bRunning;
     std::list<std::shared_ptr<Agent>> m_listAgent;
-
+    esl_handle_t m_handle;
 public:
     CallService();
     ~CallService();
@@ -35,6 +35,11 @@ public:
     std::list<std::shared_ptr<Agent>> &getAgentList() { return m_listAgent; }
     std::shared_ptr<Agent> get_available_agent();
     void reset_agents(std::shared_ptr<Agent> pAgent_);
+    int makecall(std::string dn_,std::string dst_);
+    int answercall(std::string dn_);
+    int hangupcall(std::string dn_);
+    void setHandle(esl_handle_t& handle_){m_handle = handle_;}
+    esl_handle_t* getHandle(){return &m_handle;}
 public:
     static int HttpPost(const char *url, std::string data, std::string &response, int timeout = 0);
     static int HttpGet(const char *url, std::string param, std::string &resp);
