@@ -121,7 +121,7 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                         pAgent->setDn(dn);
                         pAgent->setAgent(agent);
                         pAgent->setPolling(false);
-                        pAgent->setAgentStatus(AgentStatus::Ready);
+                        pAgent->setAgentStatus(AgentStatus_t::Ready);
 
                         auto it = std::find_if(pCallSrv->getAgentList().begin(), pCallSrv->getAgentList().end(), [&pAgent](const std::shared_ptr<Agent> &p)
                                                { return p->getDn() == pAgent->getDn(); });
@@ -131,7 +131,7 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                             std::shared_ptr<Agent> p = *it;
                             p->setAgent(agent);
                             p->setPolling(false);
-                            p->setAgentStatus(AgentStatus::Ready);
+                            p->setAgentStatus(AgentStatus_t::Ready);
                         }
                         else
                         {
@@ -180,7 +180,7 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                         if (it != pCallSrv->getAgentList().end())
                         {
                             std::shared_ptr<Agent> p = *it;                           
-                            p->setAgentStatus(AgentStatus::Ready);
+                            p->setAgentStatus(AgentStatus_t::Ready);
                             res = boost::beast::http::response<boost::beast::http::string_body>(http::status::ok, req.version());
                             res.body() = R"({"code": 0,"msg":"success."})";
                         }
@@ -203,7 +203,7 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                         if (it != pCallSrv->getAgentList().end())
                         {
                             std::shared_ptr<Agent> p = *it;                           
-                            p->setAgentStatus(AgentStatus::notReady);
+                            p->setAgentStatus(AgentStatus_t::notReady);
                             res = boost::beast::http::response<boost::beast::http::string_body>(http::status::ok, req.version());
                             res.body() = R"({"code": 0,"msg":"success."})";
                         }
@@ -226,7 +226,7 @@ void CRestfulServer::do_session(ip::tcp::socket &socket, void *argv, void *self)
                         if (it != pCallSrv->getAgentList().end())
                         {
                             std::shared_ptr<Agent> p = *it;                           
-                            p->setAgentStatus(AgentStatus::leave);
+                            p->setAgentStatus(AgentStatus_t::leave);
                             res = boost::beast::http::response<boost::beast::http::string_body>(http::status::ok, req.version());
                             res.body() = R"({"code": 0,"msg":"success."})";
                         }

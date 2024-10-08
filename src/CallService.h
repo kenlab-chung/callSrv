@@ -18,14 +18,14 @@
 #include "WebsocketSession.h"
 #include "WebsocketServer.h"
 #include <queue>
-#include "CallData.h"
+#include "CallEvent.h"
 class CallService
 {
 private:
     static bool m_bRunning;
     std::list<std::shared_ptr<Agent>> m_listAgent;
     esl_handle_t m_handle;
-    std::queue<std::shared_ptr<CallData>> m_queueEvent;
+    std::queue<std::shared_ptr<CallEvent>> m_queueEvent;
 public:
     CallService();
     ~CallService();
@@ -42,6 +42,7 @@ public:
     int hangupcall(std::string dn_);
     void setHandle(esl_handle_t& handle_){m_handle = handle_;}
     esl_handle_t* getHandle(){return &m_handle;}
+    void printAgent(std::shared_ptr<Agent> pAgent_);
 public:
     static int HttpPost(const char *url, std::string data, std::string &response, int timeout = 0);
     static int HttpGet(const char *url, std::string param, std::string &resp);

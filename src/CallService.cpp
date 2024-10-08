@@ -12,6 +12,8 @@
 #include <boost/system/error_code.hpp>
 #include <boost/asio/executor_work_guard.hpp>
 #include <pqxx/pqxx>
+#include <regex>
+
 /******************************************************
  * postgresql dev lib
  * sudo apt-get install libpq-dev
@@ -23,11 +25,11 @@
  ******************************************************/
 
 bool CallService::m_bRunning = false;
-CallService* g_srv =nullptr;
+CallService *g_srv = nullptr;
 CallService::CallService(/* args */)
 {
     m_bRunning = false;
-    g_srv =this;
+    g_srv = this;
 }
 
 CallService::~CallService()
@@ -43,7 +45,7 @@ bool CallService::startUp()
 {
     try
     {
- //       pqxx::connection conn("dbname=postgres user=postgres password=postgres hostaddr=192.168.1.92 port=5432");
+        //       pqxx::connection conn("dbname=postgres user=postgres password=postgres hostaddr=192.168.1.92 port=5432");
         pqxx::connection conn("dbname=postgres user=postgres password=postgres hostaddr=127.0.0.1 port=5432");
         pqxx::work txn(conn);
         pqxx::result res = txn.exec("select version()");
@@ -71,7 +73,6 @@ bool CallService::startUp()
         std::cout << "pg: " << e.what() << std::endl;
     }
 
-
     m_bRunning = true;
 
     std::thread{std::bind([this](int port)
@@ -83,8 +84,7 @@ bool CallService::startUp()
     std::thread{std::bind([this](int port)
                           {
         CRestfulServer server;
-        server.runner(port,this);
-	 }, 18080)}
+        server.runner(port,this); }, 18080)}
         .detach();
 
     esl_global_set_default_logger(0);
@@ -92,8 +92,7 @@ bool CallService::startUp()
         std::bind([this]()
                   { 
 		  //esl_listen_threaded("192.168.1.91", 8040, CallService::callbackfun, this, 100000);
-		  esl_listen_threaded("0.0.0.0", 18040, CallService::acd_callback, this, 100000);
-		  })}
+		  esl_listen_threaded("0.0.0.0", 18040, CallService::acd_callback, this, 100000); })}
         .detach();
 
     std::thread{
@@ -114,7 +113,7 @@ bool CallService::startUp()
                       esl_events(&handle, ESL_EVENT_TYPE_PLAIN, "ALL");
                      // esl_events(&handle, ESL_EVENT_TYPE_PLAIN, "CHANNEL_HANGUP_COMPLETE");
 
-		      this->setHandle(handle);
+		              this->setHandle(handle);
                       char cmd_str[2048] = {0};
                       snprintf(cmd_str, sizeof(cmd_str), "api version\n\n");
                       esl_send_recv(&handle, cmd_str);
@@ -138,29 +137,30 @@ bool CallService::startUp()
         .detach();
     return true;
 }
-int CallService::makecall(std::string dn_,std::string dst_)
+int CallService::makecall(std::string dn_, std::string dst_)
 {
     auto it = std::find_if(getAgentList().begin(), getAgentList().end(), [dn_](std::shared_ptr<Agent> &agent_)
                            { return agent_->getDn() == dn_; });
     if (it == getAgentList().end())
     {
-	    return -1;
+        return -1;
     }
     std::string command = "api uuid_answer " + (*it)->getUUID();
     esl_send_recv(getHandle(), command.c_str());
-    if (getHandle()->last_sr_event && getHandle()->last_sr_event->body) {
-	    esl_log(ESL_LOG_INFO, "%s\n", getHandle()->last_sr_event->body);
+    if (getHandle()->last_sr_event && getHandle()->last_sr_event->body)
+    {
+        esl_log(ESL_LOG_INFO, "%s\n", getHandle()->last_sr_event->body);
     }
-   
+
     return 0;
 }
 int CallService::answercall(std::string dn_)
 {
-	return 0;
+    return 0;
 }
 int CallService::hangupcall(std::string dn_)
 {
-	return 0;
+    return 0;
 }
 void *CallService::eventThreadFun(esl_thread_t *e, void *obj)
 {
@@ -183,19 +183,19 @@ void *CallService::eventThreadFun(esl_thread_t *e, void *obj)
         break;
         case ESL_SUCCESS:
         {
-            //esl_log(ESL_LOG_INFO, "coming event_body:%xs\n", handle->last_event);
+            // esl_log(ESL_LOG_INFO, "coming event_body:%xs\n", handle->last_event);
             if (handle->last_event->body)
             {
-               // esl_log(ESL_LOG_INFO, "event_body:%s\n", handle->last_event->body);
+                // esl_log(ESL_LOG_INFO, "event_body:%s\n", handle->last_event->body);
             }
-   	    const char *cid_dest,*cid_number,*uuid,*cause,*hangup_disposition;
-    	    cid_number = esl_event_get_header(handle->last_ievent,"Caller-Caller-ID-Number");
-	    cid_dest = esl_event_get_header(handle->last_ievent,"Caller-Destination-Number");
-	    cause = esl_event_get_header(handle->last_ievent,"Hangup-Cause");
-	    hangup_disposition = esl_event_get_header(handle->last_ievent,"variable_sip_hangup_disposition");
-	    uuid = esl_event_get_header(handle->last_ievent,"Unique-ID");
-	    char szMsg[1024]={0};
-	    sprintf(szMsg,"UUID:%s Caller: %s Callee:%s HangupCause:%s hangup_disposition:%s",uuid,cid_number,cid_dest,cause,hangup_disposition);
+            const char *cid_dest, *cid_number, *uuid, *cause, *hangup_disposition;
+            cid_number = esl_event_get_header(handle->last_ievent, "Caller-Caller-ID-Number");
+            cid_dest = esl_event_get_header(handle->last_ievent, "Caller-Destination-Number");
+            cause = esl_event_get_header(handle->last_ievent, "Hangup-Cause");
+            hangup_disposition = esl_event_get_header(handle->last_ievent, "variable_sip_hangup_disposition");
+            uuid = esl_event_get_header(handle->last_ievent, "Unique-ID");
+            char szMsg[1024] = {0};
+            sprintf(szMsg, "UUID:%s Caller: %s Callee:%s HangupCause:%s hangup_disposition:%s", uuid, cid_number, cid_dest, cause, hangup_disposition);
             esl_event_t *pEvent = handle->last_ievent;
             switch (pEvent->event_id)
             {
@@ -213,68 +213,74 @@ void *CallService::eventThreadFun(esl_thread_t *e, void *obj)
             break;
             case ESL_EVENT_CHANNEL_PROGRESS:
             {
-		    std::cout<<"channel progress "<<szMsg<<std::endl;
+                std::cout << "channel progress " << szMsg << std::endl;
             }
             break;
             case ESL_EVENT_CHANNEL_PROGRESS_MEDIA: // ring
             {
-		    std::cout<<"channel progres media "<<szMsg<<std::endl;
+                std::cout << "channel progres media " << szMsg << std::endl;
             }
             break;
-	    case ESL_EVENT_CHANNEL_CREATE:
-	    {
-		std::cout<<"channel create "<<szMsg<<std::endl;
-    		auto it = std::find_if(g_srv->getAgentList().begin(), g_srv->getAgentList().end(), [cid_dest](std::shared_ptr<Agent> &agent_)
-                           { return agent_->getDn() == std::string(cid_dest); });
-		if(it != g_srv->getAgentList().end())
-		{
-			(*it)->setUUID(uuid);
-		}
-	    }
-	    break;
+            case ESL_EVENT_CHANNEL_CREATE:
+            {
+                std::cout << "channel create " << szMsg << std::endl;
+                auto it = std::find_if(g_srv->getAgentList().begin(), g_srv->getAgentList().end(), [cid_dest](std::shared_ptr<Agent> &agent_)
+                                       { return agent_->getDn() == std::string(cid_dest); });
+                if (it != g_srv->getAgentList().end())
+                {
+                    (*it)->setUUID(uuid);
+                }
+            }
+            break;
             case ESL_EVENT_CHANNEL_ANSWER:
             {
-		    std::cout<<"channel answer " <<szMsg<<std::endl;
+                std::cout << "channel answer " << szMsg << std::endl;
             }
             break;
             case ESL_EVENT_CHANNEL_HANGUP:
             {
-		 std::cout<<"channel hangup "<<szMsg<<std::endl;
+                std::cout << "channel hangup " << szMsg << std::endl;
             }
             break;
             case ESL_EVENT_CHANNEL_BRIDGE:
             {
-		    std::cout<<"channel bridge "<<szMsg<<std::endl;
+                std::cout << "channel bridge " << szMsg << std::endl;
             }
             break;
-	    case ESL_EVENT_CHANNEL_HANGUP_COMPLETE:
-	    {
-		    std::cout<<"channel hangup_complete "<<szMsg<<std::endl;
-		    if (hangup_disposition) {
-                        if (std::string(hangup_disposition) == "recv_bye") {
-                            std::cout << "The caller hung up (Caller: " << cid_number << ", Callee: " << cid_dest << ")" << std::endl;
-                        } else if (std::string(hangup_disposition) == "send_bye") {
-                            std::cout << "The callee hung up (Caller: " << cid_number << ", Callee: " << cid_dest << ")" << std::endl;
-                        } else {
-                            std::cout << "Hangup cause: " << cause << std::endl;
-                        }
-                    } else {
+            case ESL_EVENT_CHANNEL_HANGUP_COMPLETE:
+            {
+                std::cout << "channel hangup_complete " << szMsg << std::endl;
+                if (hangup_disposition)
+                {
+                    if (std::string(hangup_disposition) == "recv_bye")
+                    {
+                        std::cout << "The caller hung up (Caller: " << cid_number << ", Callee: " << cid_dest << ")" << std::endl;
+                    }
+                    else if (std::string(hangup_disposition) == "send_bye")
+                    {
+                        std::cout << "The callee hung up (Caller: " << cid_number << ", Callee: " << cid_dest << ")" << std::endl;
+                    }
+                    else
+                    {
                         std::cout << "Hangup cause: " << cause << std::endl;
                     }
-		    for(auto &agent_:g_srv->getAgentList())
-		    {
-			    if(agent_->getDn()==std::string(cid_dest))
-			    {
-				    agent_->setPolling(false);
-				    agent_->setUUID("");
-				    std::cout<<"successful"<<std::endl;
-				    break;
-			    }
-			    std::string state = agent_->getPolling()==true?"True":"False";
-			    std::cout<<"dn:"<<agent_->getDn()<<" state:"<<state.c_str()<<std::endl;
-		    }
-	    }
-	    break;
+                }
+                else
+                {
+                    std::cout << "Hangup cause: " << cause << std::endl;
+                }
+                for (auto &agent_ : g_srv->getAgentList())
+                {
+                    if (agent_->getDn() == std::string(cid_dest))
+                    {
+                        agent_->setAgentStatus(AgentStatus_t::Ready);
+                        agent_->setUUID("");
+                        g_srv->printAgent(agent_);
+                        break;
+                    }
+                }
+            }
+            break;
             case ESL_EVENT_CHANNEL_UNBRIDGE:
             {
             }
@@ -300,30 +306,34 @@ void *CallService::eventThreadFun(esl_thread_t *e, void *obj)
     }
     return nullptr;
 }
-
+void CallService::printAgent(std::shared_ptr<Agent> pAgent_)
+{
+    std::string state = pAgent_->getPolling() == true ? "True" : "False";
+    std::cout << "dn:" << pAgent_->getDn() << " uuid:" << pAgent_->getUUID() << " Polling:" << state.c_str() << " status:" << (int)(pAgent_->getAgentStatus())<< std::endl;
+}
 void CallService::doService()
 {
     while (m_bRunning)
     {
-	if(m_queueEvent.empty())
-	{
-	   std::this_thread::sleep_for(std::chrono::microseconds(200));
-	   continue;
-	}
-	std::shared_ptr<CallData> pData = m_queueEvent.front();
-	m_queueEvent.pop();
+        if (m_queueEvent.empty())
+        {
+            std::this_thread::sleep_for(std::chrono::microseconds(200));
+            continue;
+        }
+        std::shared_ptr<CallEvent> pData = m_queueEvent.front();
+        m_queueEvent.pop();
 
-	std::string res,url,call_in_url="",call_out_url="";
-	if(pData->getDir()==CallDir::callin)
-	{
-		url = call_in_url;
-	}
-	else
-	{
-		url = call_out_url;
-	}
+        std::string res, url, call_in_url = "", call_out_url = "";
+        if (pData->getDir() == CallDir_t::callin)
+        {
+            url = call_in_url;
+        }
+        else
+        {
+            url = call_out_url;
+        }
 
-    	int nRet =HttpPost(url.c_str(),pData->getData().c_str(), res, 0);
+        int nRet = HttpPost(url.c_str(), pData->getData().c_str(), res, 0);
     }
 }
 
@@ -339,115 +349,123 @@ void CallService::acd_callback(esl_socket_t server_sock, esl_socket_t client_soc
     esl_status_t status = ESL_SUCCESS;
     std::shared_ptr<Agent> pAgent = nullptr;
     esl_attach_handle(&handle, client_sock, addr);
-    
+
     esl_log(ESL_LOG_INFO, "Connected! %d\n", handle.sock);
-    const char *cid_name,*cid_number;
-    cid_name = esl_event_get_header(handle.info_event,"Caller-Caller-ID-Name");
-    cid_number = esl_event_get_header(handle.info_event,"Caller-Caller-ID-Number");
-    esl_log(ESL_LOG_INFO,"New call from %s<%s>\n",cid_name,cid_number);
-    
-    esl_send_recv(&handle,"myevent");
-    esl_log(ESL_LOG_INFO,"%s\n",handle.last_sr_reply);
-    
+    const char *cid_name, *cid_number;
+    cid_name = esl_event_get_header(handle.info_event, "Caller-Caller-ID-Name");
+    cid_number = esl_event_get_header(handle.info_event, "Caller-Caller-ID-Number");
+    esl_log(ESL_LOG_INFO, "New call from %s<%s>\n", cid_name, cid_number);
+
+    esl_send_recv(&handle, "myevent");
+    esl_log(ESL_LOG_INFO, "%s\n", handle.last_sr_reply);
+
     esl_send_recv(&handle, "linger 5");
-    esl_log(ESL_LOG_INFO,"%s\n",handle.last_sr_reply);
+    esl_log(ESL_LOG_INFO, "%s\n", handle.last_sr_reply);
 
-    esl_execute(&handle,"answer",NULL,NULL);
-    esl_execute(&handle,"set","tts_engine=tts_commandline",NULL);
-    esl_execute(&handle,"set","tts_voice=Ting-ting",NULL);
-    esl_execute(&handle,"set","continue_on_fail=true",NULL);
-    esl_execute(&handle,"set","hangup_after_bridge=true",NULL);
-    esl_execute(&handle,"speak","您好，欢迎致电，电话接通中，请稍后",NULL);
+    esl_execute(&handle, "answer", NULL, NULL);
+    esl_execute(&handle, "set", "tts_engine=tts_commandline", NULL);
+    esl_execute(&handle, "set", "tts_voice=Ting-ting", NULL);
+    esl_execute(&handle, "set", "continue_on_fail=true", NULL);
+    esl_execute(&handle, "set", "hangup_after_bridge=true", NULL);
+    esl_execute(&handle, "speak", "您好，欢迎致电，电话接通中，请稍后", NULL);
     sleep(1);
-    esl_execute(&handle,"playback","local_stream://moh",NULL);
-    
-    while(status ==ESL_SUCCESS || status == ESL_BREAK)
-    {
-	    const char* type;
-	    const char* application;
-	    
-	    status = esl_recv_timed(&handle,1000);
-	    if(status == ESL_BREAK)
-	    {
-    		pAgent = pThis->get_available_agent();
-    		if(pAgent!=nullptr)
-    		{
-            		std::string routedAgent = "user/";
-            		routedAgent += pAgent->getDn();
-			esl_execute(&handle,"break",NULL,NULL);
-            		esl_execute(&handle, "bridge", routedAgent.c_str(), NULL);
-    			esl_log(ESL_LOG_INFO,"CSPBX Calling to:%s\n",routedAgent.c_str());
-			break;
-    		}
-		continue;
-	    }
-	    type = esl_event_get_header(handle.last_event,"content-type");
-	    if(type && !strcasecmp(type,"text/event-plain"))
-	    {
-		    const char* uuid = esl_event_get_header(handle.last_ievent,"Other-Leg-Unique-ID");
-		    switch(handle.last_ievent->event_id)
-		    {
-			    case ESL_EVENT_CHANNEL_BRIDGE:
-				if(pAgent)
-				{
-					pAgent->setUUID(uuid);
-				}
-    				esl_log(ESL_LOG_INFO,"CSPBX Bridged to:%s\n",uuid);
-			    	break;
-			    case ESL_EVENT_CHANNEL_HANGUP_COMPLETE:
-				if(pAgent)
-				{
-					pThis->reset_agents(pAgent);
-					pAgent=nullptr;
-				}
-    				esl_log(ESL_LOG_INFO,"CSPBX Caller:%s<%s> Hangup\n",cid_name,cid_number);
-			    	goto end;
-			    case ESL_EVENT_CHANNEL_EXECUTE_COMPLETE:
-				application = esl_event_get_header(handle.last_ievent,"Application");
-				if(!strcmp(application,"bridge"))
-				{
-					const char *disposition = esl_event_get_header(handle.last_ievent,"variable_originate_disposition");
-    					esl_log(ESL_LOG_INFO,"dispostion: %s\n",disposition);
-					if(!strcmp(disposition,"CALL_REJETED")||!strcmp(disposition,"USER_BUSY"))
-					{
-						pThis->reset_agents(pAgent);
-						pAgent = nullptr;
-					}
+    esl_execute(&handle, "playback", "local_stream://moh", NULL);
 
-				}
-				if(pAgent)
-				{
-					pThis->reset_agents(pAgent);
-				}
-    				esl_log(ESL_LOG_INFO,"CSPBX Caller:%s<%s> Hangup\n",cid_name,cid_number);
-			    	break;
-			    default:
-				break;
-		    }
-	    }
+    while (status == ESL_SUCCESS || status == ESL_BREAK)
+    {
+        const char *type;
+        const char *application;
+
+        status = esl_recv_timed(&handle, 1000);
+        if (status == ESL_BREAK)
+        {
+            pAgent = pThis->get_available_agent();
+            if (pAgent != nullptr)
+            {
+                std::string routedAgent = "user/";
+                routedAgent += pAgent->getDn();
+                esl_execute(&handle, "break", NULL, NULL);
+                esl_execute(&handle, "bridge", routedAgent.c_str(), NULL);
+                esl_log(ESL_LOG_INFO, "Calling to:%s\n", routedAgent.c_str());
+                break;
+            }
+            continue;
+        }
+        type = esl_event_get_header(handle.last_event, "content-type");
+        if (type && !strcasecmp(type, "text/event-plain"))
+        {
+            const char *uuid = esl_event_get_header(handle.last_ievent, "Other-Leg-Unique-ID");
+            switch (handle.last_ievent->event_id)
+            {
+            case ESL_EVENT_CHANNEL_BRIDGE:
+                if (pAgent)
+                {
+                    pAgent->setUUID(uuid);
+                }
+                esl_log(ESL_LOG_INFO, "Bridged to:%s\n", uuid);
+                break;
+            case ESL_EVENT_CHANNEL_HANGUP_COMPLETE:
+                if (pAgent)
+                {
+                    pThis->reset_agents(pAgent);
+                    pAgent = nullptr;
+                }
+                esl_log(ESL_LOG_INFO, "Caller:%s<%s> Hangup\n", cid_name, cid_number);
+                goto end;
+            case ESL_EVENT_CHANNEL_EXECUTE_COMPLETE:
+                application = esl_event_get_header(handle.last_ievent, "Application");
+                if (!strcmp(application, "bridge"))
+                {
+                    const char *disposition = esl_event_get_header(handle.last_ievent, "variable_originate_disposition");
+                    esl_log(ESL_LOG_INFO, "dispostion: %s\n", disposition);
+                    if (!strcmp(disposition, "CALL_REJETED") || !strcmp(disposition, "USER_BUSY"))
+                    {
+                        pThis->reset_agents(pAgent);
+                        pAgent = nullptr;
+                    }
+                }
+                if (pAgent)
+                {
+                    pThis->reset_agents(pAgent);
+                }
+                esl_log(ESL_LOG_INFO, "CSPBX Caller:%s<%s> Hangup\n", cid_name, cid_number);
+                break;
+            default:
+                break;
+            }
+        }
     }
- end:
+end:
     esl_log(ESL_LOG_INFO, "Disconnectd!%d\n", handle.sock);
     esl_disconnect(&handle);
 }
 
 void CallService::reset_agents(std::shared_ptr<Agent> pAgent_)
 {
-	pAgent_->setPolling(false);
+    pAgent_->setPolling(false);
 }
 std::shared_ptr<Agent> CallService::get_available_agent()
 {
     std::shared_ptr<Agent> pAgent = nullptr;
-    for(auto &agent_:getAgentList())
+
+    auto it = std::find_if(getAgentList().begin(), getAgentList().end(), [](std::shared_ptr<Agent> &agent_)
+                           { return agent_->getPolling() == false; });
+    if (it == getAgentList().end())
     {
-	 std::string state = agent_->getPolling()==true?"True":"False";
-	 std::cout<<"dn:"<<agent_->getDn()<<" status:"<<(int)agent_->getAgentStatus()<<" state:"<<state.c_str()<<std::endl;
-	 if(agent_->getPolling()==false && agent_->getAgentStatus()==AgentStatus::Ready)
-	 {
-		agent_->setPolling(true);
-		pAgent = agent_;
-		break;
-	 }
+        std::for_each(getAgentList().begin(), getAgentList().end(), [](auto x)
+                      { x->setPolling(false); });
+    }
+
+    for (auto &agent_ : getAgentList())
+    {
+        printAgent(agent_);
+
+        if (agent_->getPolling() == false && agent_->getAgentStatus() == AgentStatus_t::Ready)
+        {
+            agent_->setPolling(true);
+            pAgent = agent_;
+            break;
+        }
     }
     return pAgent;
 }
