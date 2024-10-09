@@ -139,6 +139,7 @@ bool CallService::startUp()
 }
 int CallService::makecall(std::string dn_, std::string dst_)
 {
+    //bgapi originate user/1001 015000415869 xml default
     auto it = std::find_if(getAgentList().begin(), getAgentList().end(), [dn_](std::shared_ptr<Agent> &agent_)
                            { return agent_->getDn() == dn_; });
     if (it == getAgentList().end())
@@ -156,6 +157,7 @@ int CallService::makecall(std::string dn_, std::string dst_)
 }
 int CallService::answercall(std::string dn_)
 {
+    //bgapi uuid_kill 9c8a19e2-4ca7-402f-8324-75c76a0888a2
     return 0;
 }
 int CallService::hangupcall(std::string dn_)
