@@ -157,11 +157,12 @@ int CallService::makecall(std::string dn_, std::string dst_)
 }
 int CallService::answercall(std::string dn_)
 {
-    //bgapi uuid_kill 9c8a19e2-4ca7-402f-8324-75c76a0888a2
+    //bgapi uuid_answer 9c8a19e2-4ca7-402f-8324-75c76a0888a2
     return 0;
 }
 int CallService::hangupcall(std::string dn_)
 {
+    //bgapi uuid_kill 9c8a19e2-4ca7-402f-8324-75c76a0888a2
     return 0;
 }
 void *CallService::eventThreadFun(esl_thread_t *e, void *obj)
