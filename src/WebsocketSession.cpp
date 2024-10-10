@@ -42,10 +42,12 @@ void WebsocketSession::on_accept(beast::error_code ec)
 }
 void WebsocketSession::do_read()
 {
+    std::cout<<"do_read()"<<std::endl;
     ws_.async_read(buffer_, beast::bind_front_handler(&WebsocketSession::on_read, shared_from_this()));
 }
 void WebsocketSession::on_read(beast::error_code ec, std::size_t bytes_transferred)
 {
+    std::cout<<"on_read()"<<std::endl;
     boost::ignore_unused(bytes_transferred);
     if (ec)
     {

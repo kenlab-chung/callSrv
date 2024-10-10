@@ -21,11 +21,21 @@ void WebsocketServer::do_accept()
     auto s = std::make_shared<WebsocketSession>(std::move(socket));
     acceptor_.async_accept(s->ws_.next_layer(),beast::bind_front_handler(&WebsocketServer::on_accept,this,s));
 }
+void WebsocketServer::do_write(std::string message)
+{
+    for(auto &session:m_listSessions)
+    {
+        session->do_write(message);
+    }
+}
+
 void WebsocketServer::on_accept(std::shared_ptr<WebsocketSession> session,beast::error_code ec)
 {
+    std::cout<<"on_accept()"<<std::endl;
     if(!ec)
     {
-        session->run();
+        m_listSessions.push_back(session);
+        session->run();        
     }
     do_accept();
 }
