@@ -26,6 +26,7 @@
 
 bool CallService::m_bRunning = false;
 CallService *g_srv = nullptr;
+std::shared_ptr<WebsocketServer> g_WebsocketServer= nullptr;
 CallService::CallService(/* args */)
 {
     m_bRunning = false;
@@ -78,7 +79,8 @@ bool CallService::startUp()
     std::thread{std::bind([this](int port)
                           {
         net::io_context ioc;
-        WebsocketServer s(ioc,tcp::endpoint(net::ip::make_address("0.0.0.0"),port));
+        //WebsocketServer s(ioc,tcp::endpoint(net::ip::make_address("0.0.0.0"),port));
+        g_WebsocketServer = std::make_shared<WebsocketServer>(ioc,tcp::endpoint(net::ip::make_address("0.0.0.0"),port));
         ioc.run(); }, 18081)}
         .detach();
     std::thread{std::bind([this](int port)
@@ -158,6 +160,10 @@ int CallService::makecall(std::string dn_, std::string dst_)
 int CallService::answercall(std::string dn_)
 {
     // bgapi uuid_answer 9c8a19e2-4ca7-402f-8324-75c76a0888a2
+    if(g_WebsocketServer!=nullptr)
+    {
+        g_WebsocketServer->do_write("answercall");
+    }
     return 0;
 }
 int CallService::hangupcall(std::string dn_)
